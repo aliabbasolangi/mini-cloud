@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
+	"strings"
 
+	"minicloud/internal/auth"
 	"minicloud/internal/avatar"
 	"minicloud/internal/blob"
 	"minicloud/internal/catalog"
@@ -39,6 +42,10 @@ func main() {
 	}
 	defer cat.Close()
 
+	if err := seedAdmin(cat, cfg); err != nil {
+		log.Fatalf("admin: %v", err)
+	}
+
 	log.Printf("listening on http://%s", cfg.HTTPAddr)
 	log.Printf("files (bytes)   -> %s", cfg.BlobDir)
 	log.Printf("previews        -> %s", cfg.ThumbDir)
@@ -60,4 +67,24 @@ func main() {
 	if err := http.ListenAndServe(cfg.HTTPAddr, apihttp.New(store, cat, thumbs, avatars, cfg)); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func seedAdmin(cat *catalog.DB, cfg config.Config) error {
+	email := strings.TrimSpace(cfg.AdminEmail)
+	if email == "" {
+		return nil
+	}
+	hash := ""
+	if pw := cfg.AdminPassword; strings.TrimSpace(pw) != "" {
+		var err error
+		hash, err = auth.HashPassword(pw)
+		if err != nil {
+			return err
+		}
+	}
+	if err := cat.EnsureAdmin(context.Background(), email, hash); err != nil {
+		return err
+	}
+	log.Printf("admin account is loaded from environment")
+	return nil
 }

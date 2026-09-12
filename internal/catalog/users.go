@@ -10,9 +10,12 @@ import (
 )
 
 var (
-	ErrEmailTaken    = errors.New("email already registered")
-	ErrUserNotFound  = errors.New("user not found")
-	ErrBadProfile    = errors.New("invalid profile")
+	ErrEmailTaken     = errors.New("email already registered")
+	ErrUserNotFound   = errors.New("user not found")
+	ErrBadProfile     = errors.New("invalid profile")
+	ErrNotApproved    = errors.New("account waiting for approval")
+	ErrNotAdmin       = errors.New("admin only")
+	ErrCannotDenySelf = errors.New("cannot deny the admin account")
 )
 
 var accentHex = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
@@ -26,21 +29,36 @@ type User struct {
 	Accent       string
 	VaultSalt    string
 	VaultWrap    string
+	Approved     bool
+	IsAdmin      bool
 }
 
 func (db *DB) CreateUser(ctx context.Context, email, passwordHash string) (*User, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
+	admins, err := db.AdminCount(ctx)
+	if err != nil {
+		return nil, err
+	}
 	u := &User{
 		ID:           newID(),
 		Email:        email,
 		PasswordHash: passwordHash,
 		Theme:        "dark",
 		Accent:       "#d4a574",
+		Approved:     admins == 0,
+		IsAdmin:      admins == 0,
 	}
-	_, err := db.SQL.ExecContext(ctx, `
-INSERT INTO users (id, email, password_hash, created_at, display_name, theme, accent)
-VALUES (?, ?, ?, ?, '', 'dark', '#d4a574')
-`, u.ID, u.Email, u.PasswordHash, time.Now().UTC().Format(time.RFC3339))
+	approved, admin := 0, 0
+	if u.Approved {
+		approved = 1
+	}
+	if u.IsAdmin {
+		admin = 1
+	}
+	_, err = db.SQL.ExecContext(ctx, `
+INSERT INTO users (id, email, password_hash, created_at, display_name, theme, accent, approved, is_admin)
+VALUES (?, ?, ?, ?, '', 'dark', '#d4a574', ?, ?)
+`, u.ID, u.Email, u.PasswordHash, time.Now().UTC().Format(time.RFC3339), approved, admin)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "unique") {
 			return nil, ErrEmailTaken
@@ -50,11 +68,14 @@ VALUES (?, ?, ?, ?, '', 'dark', '#d4a574')
 	return u, nil
 }
 
-const userSelect = `id, email, password_hash, display_name, theme, accent, vault_salt, vault_wrap`
+const userSelect = `id, email, password_hash, display_name, theme, accent, vault_salt, vault_wrap, approved, is_admin`
 
 func scanUser(row interface{ Scan(dest ...any) error }) (*User, error) {
 	u := &User{}
-	err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.DisplayName, &u.Theme, &u.Accent, &u.VaultSalt, &u.VaultWrap)
+	var approved, admin int
+	err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.DisplayName, &u.Theme, &u.Accent, &u.VaultSalt, &u.VaultWrap, &approved, &admin)
+	u.Approved = approved == 1
+	u.IsAdmin = admin == 1
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrUserNotFound
 	}
@@ -203,6 +224,98 @@ UPDATE users SET display_name = ?, theme = ?, accent = ? WHERE id = ?
 	n, _ := res.RowsAffected()
 	if n == 0 {
 		return nil, ErrUserNotFound
+	}
+	return db.UserByID(ctx, id)
+}
+
+func (db *DB) AdminCount(ctx context.Context) (int, error) {
+	var n int
+	err := db.SQL.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE is_admin = 1`).Scan(&n)
+	return n, err
+}
+
+func (db *DB) PendingCount(ctx context.Context) (int, error) {
+	var n int
+	err := db.SQL.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE approved = 0`).Scan(&n)
+	return n, err
+}
+
+func (db *DB) ListAdmins(ctx context.Context) ([]*User, error) {
+	rows, err := db.SQL.QueryContext(ctx, `SELECT `+userSelect+` FROM users WHERE is_admin = 1`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*User
+	for rows.Next() {
+		u, err := scanUser(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, u)
+	}
+	return out, rows.Err()
+}
+
+func (db *DB) ListUsers(ctx context.Context) ([]*User, error) {
+	rows, err := db.SQL.QueryContext(ctx, `
+SELECT `+userSelect+` FROM users ORDER BY approved ASC, created_at DESC
+`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*User
+	for rows.Next() {
+		u, err := scanUser(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, u)
+	}
+	return out, rows.Err()
+}
+
+func (db *DB) EnsureAdmin(ctx context.Context, email, passwordHash string) error {
+	email = strings.ToLower(strings.TrimSpace(email))
+	if email == "" {
+		return nil
+	}
+	if _, err := db.SQL.ExecContext(ctx, `UPDATE users SET is_admin = 0`); err != nil {
+		return err
+	}
+	user, err := db.UserByEmail(ctx, email)
+	if err == nil {
+		_, err = db.SQL.ExecContext(ctx, `UPDATE users SET is_admin = 1, approved = 1 WHERE id = ?`, user.ID)
+		return err
+	}
+	if !errors.Is(err, ErrUserNotFound) {
+		return err
+	}
+	if strings.TrimSpace(passwordHash) == "" {
+		return nil
+	}
+	_, err = db.SQL.ExecContext(ctx, `
+INSERT INTO users (id, email, password_hash, created_at, display_name, theme, accent, approved, is_admin)
+VALUES (?, ?, ?, ?, '', 'dark', '#d4a574', 1, 1)
+`, newID(), email, passwordHash, time.Now().UTC().Format(time.RFC3339))
+	return err
+}
+
+func (db *DB) SetApproved(ctx context.Context, id string, approved bool) (*User, error) {
+	user, err := db.UserByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if user.IsAdmin {
+		return user, nil
+	}
+	flag := 0
+	if approved {
+		flag = 1
+	}
+	if _, err := db.SQL.ExecContext(ctx, `UPDATE users SET approved = ? WHERE id = ?`, flag, id); err != nil {
+		return nil, err
 	}
 	return db.UserByID(ctx, id)
 }

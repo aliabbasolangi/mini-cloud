@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log"
@@ -124,7 +125,14 @@ func (h authHandlers) registerVerify(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	_ = h.catalog.EnsureInviteNotifications(r.Context(), user)
-	h.respondToken(w, user, http.StatusCreated)
+	if !user.IsAdmin {
+		who := user.DisplayName
+		if who == "" {
+			who = user.Email
+		}
+		_ = h.catalog.NotifyAdmins(r.Context(), "New account waiting", who+" asked to join SafeKeeping.")
+	}
+	h.respondToken(w, r.Context(), user, http.StatusCreated)
 }
 
 func (h authHandlers) login(w http.ResponseWriter, r *http.Request) {
@@ -144,7 +152,7 @@ func (h authHandlers) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = h.catalog.EnsureInviteNotifications(r.Context(), user)
-	h.respondToken(w, user, http.StatusOK)
+	h.respondToken(w, r.Context(), user, http.StatusOK)
 }
 
 func (h authHandlers) forgot(w http.ResponseWriter, r *http.Request) {
@@ -210,7 +218,7 @@ func (h authHandlers) reset(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "password was reset, but sign-in failed")
 		return
 	}
-	h.respondToken(w, user, http.StatusOK)
+	h.respondToken(w, r.Context(), user, http.StatusOK)
 }
 
 func (h authHandlers) resend(w http.ResponseWriter, r *http.Request) {
@@ -306,20 +314,27 @@ func (h authHandlers) writeCodeSent(w http.ResponseWriter, message string) {
 	})
 }
 
-func (h authHandlers) respondToken(w http.ResponseWriter, user *catalog.User, status int) {
+func (h authHandlers) respondToken(w http.ResponseWriter, ctx context.Context, user *catalog.User, status int) {
 	token, err := auth.IssueToken(h.secret, user.ID, 7*24*time.Hour)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not create session")
 		return
 	}
+	pending := 0
+	if user.IsAdmin {
+		pending, _ = h.catalog.PendingCount(ctx)
+	}
 	writeJSON(w, status, map[string]any{
-		"token":        token,
-		"email":        user.Email,
-		"display_name": user.DisplayName,
-		"theme":        user.Theme,
-		"accent":       user.Accent,
-		"vault_salt":   user.VaultSalt,
-		"vault_wrap":   user.VaultWrap,
+		"token":         token,
+		"email":         user.Email,
+		"display_name":  user.DisplayName,
+		"theme":         user.Theme,
+		"accent":        user.Accent,
+		"vault_salt":    user.VaultSalt,
+		"vault_wrap":    user.VaultWrap,
+		"approved":      user.Approved,
+		"is_admin":      user.IsAdmin,
+		"pending_count": pending,
 	})
 }
 

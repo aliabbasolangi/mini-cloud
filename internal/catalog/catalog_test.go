@@ -188,3 +188,81 @@ func TestVaultAndEncryptedObject(t *testing.T) {
 		t.Fatalf("reload enc: %+v %v", got, err)
 	}
 }
+
+func TestFirstUserIsAdminLaterUsersWait(t *testing.T) {
+	db, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	ctx := context.Background()
+
+	owner, err := db.CreateUser(ctx, "ali@example.com", "hash")
+	if err != nil || !owner.IsAdmin || !owner.Approved {
+		t.Fatalf("first user should be admin: %+v %v", owner, err)
+	}
+	guest, err := db.CreateUser(ctx, "sam@example.com", "hash")
+	if err != nil || guest.IsAdmin || guest.Approved {
+		t.Fatalf("later user should wait: %+v %v", guest, err)
+	}
+	ok, err := db.SetApproved(ctx, guest.ID, true)
+	if err != nil || !ok.Approved {
+		t.Fatalf("approve: %+v %v", ok, err)
+	}
+}
+
+func TestEnsureAdminPromotesExistingUser(t *testing.T) {
+	db, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	ctx := context.Background()
+
+	first, err := db.CreateUser(ctx, "first@example.com", "hash")
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, err := db.CreateUser(ctx, "owner@example.com", "hash")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.EnsureAdmin(ctx, "owner@example.com", ""); err != nil {
+		t.Fatal(err)
+	}
+	got, err := db.UserByEmail(ctx, "owner@example.com")
+	if err != nil || !got.IsAdmin || !got.Approved {
+		t.Fatalf("owner %+v %v", got, err)
+	}
+	old, err := db.UserByID(ctx, first.ID)
+	if err != nil || old.IsAdmin {
+		t.Fatalf("old admin should be demoted: %+v %v", old, err)
+	}
+	if owner.ID == "" {
+		t.Fatal("missing owner")
+	}
+}
+
+func TestEnsureAdminCreatesMissingOwner(t *testing.T) {
+	db, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	ctx := context.Background()
+
+	if err := db.EnsureAdmin(ctx, "owner@example.com", "hash"); err != nil {
+		t.Fatal(err)
+	}
+	got, err := db.UserByEmail(ctx, "owner@example.com")
+	if err != nil || !got.IsAdmin || !got.Approved || got.PasswordHash != "hash" {
+		t.Fatalf("created owner %+v %v", got, err)
+	}
+	if err := db.EnsureAdmin(ctx, "owner@example.com", "other-hash"); err != nil {
+		t.Fatal(err)
+	}
+	again, err := db.UserByEmail(ctx, "owner@example.com")
+	if err != nil || again.PasswordHash != "hash" {
+		t.Fatalf("existing owner password must stay: %+v %v", again, err)
+	}
+}

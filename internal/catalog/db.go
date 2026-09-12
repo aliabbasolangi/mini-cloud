@@ -54,6 +54,10 @@ func Open(path string) (*DB, error) {
 		_ = sqlDB.Close()
 		return nil, fmt.Errorf("migrate vault: %w", err)
 	}
+	if err := migrateApproval(sqlDB); err != nil {
+		_ = sqlDB.Close()
+		return nil, fmt.Errorf("migrate approval: %w", err)
+	}
 	return &DB{SQL: sqlDB}, nil
 }
 
@@ -173,6 +177,34 @@ func migrateVault(sqlDB *sql.DB) error {
 		}
 	}
 	return nil
+}
+
+func migrateApproval(sqlDB *sql.DB) error {
+	for _, col := range []string{
+		"approved INTEGER NOT NULL DEFAULT 0",
+		"is_admin INTEGER NOT NULL DEFAULT 0",
+	} {
+		if _, err := sqlDB.Exec("ALTER TABLE users ADD COLUMN " + col); err != nil {
+			if !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+				return err
+			}
+		}
+	}
+	var admins int
+	if err := sqlDB.QueryRow(`SELECT COUNT(*) FROM users WHERE is_admin = 1`).Scan(&admins); err != nil {
+		return err
+	}
+	if admins > 0 {
+		return nil
+	}
+	if _, err := sqlDB.Exec(`UPDATE users SET approved = 1`); err != nil {
+		return err
+	}
+	_, err := sqlDB.Exec(`
+UPDATE users SET is_admin = 1
+WHERE id = (SELECT id FROM users ORDER BY created_at ASC, id ASC LIMIT 1)
+`)
+	return err
 }
 
 func migrateEmailCodes(sqlDB *sql.DB) error {

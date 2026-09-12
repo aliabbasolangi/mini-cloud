@@ -132,8 +132,10 @@
       text-align: center; margin: 4px 0 22px;
     }
     .resume-face .pfp-xl { margin: 0 0 12px; }
+    .resume-face { cursor: pointer; }
     .resume-face strong { display: block; font-size: 20px; letter-spacing: -0.03em; }
     .resume-face span { color: var(--muted); font-size: 13px; word-break: break-all; }
+    .resume-face span:empty { display: none; }
     .account-menu {
       position: absolute; right: 0; top: calc(100% + 8px);
       width: 240px; padding: 8px;
@@ -366,6 +368,14 @@
       background: #2a241c; border: 1px solid #4a3d2c; font-size: 13px; word-break: break-all;
     }
     .banner a { color: var(--accent); }
+    #wait-banner { color: var(--ink); }
+    .approval-item {
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+      padding: 14px 0; border-top: 1px solid var(--line);
+    }
+    .approval-item:first-child { border-top: 0; padding-top: 0; }
+    .approval-item span { color: var(--muted); font-size: 13px; word-break: break-all; }
+    .approval-item .actions { display: flex; gap: 8px; flex-shrink: 0; }
     .collab-bar {
       display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
       margin: 12px 0 0; padding: 12px 14px; border-radius: 10px;
@@ -445,6 +455,9 @@
           <button type="button" class="menu-item" id="open-notifications">
             Notifications <span id="menu-badge" class="menu-badge hidden">0</span>
           </button>
+          <button type="button" class="menu-item hidden" id="open-approvals">
+            Approvals <span id="approval-badge" class="menu-badge hidden">0</span>
+          </button>
           <button type="button" class="menu-item" id="open-settings">Settings</button>
           <button type="button" class="menu-item" id="logout">Log out</button>
         </div>
@@ -488,7 +501,7 @@
         </div>
 
         <div class="auth-pane hidden" id="pane-resume">
-          <div class="resume-face">
+          <div class="resume-face" id="resume-card">
             <div class="pfp-xl" id="resume-pfp">
               <span id="resume-letter">?</span>
               <img id="resume-img" class="hidden" alt="" />
@@ -496,12 +509,7 @@
             <strong id="resume-name"></strong>
             <span id="resume-email"></span>
           </div>
-          <label for="resume-password">Password</label>
-          <input id="resume-password" type="password" autocomplete="current-password" />
-          <button type="button" class="auth-go" id="resume-submit">Sign in</button>
-          <p class="auth-links">
-            <button type="button" class="link" id="resume-forgot">Forgot password?</button>
-          </p>
+          <button type="button" class="auth-go" id="resume-submit">Continue</button>
           <p class="auth-links">
             <button type="button" class="link" id="resume-other">Different account</button>
           </p>
@@ -541,6 +549,7 @@
         <div class="usage-bar"><span id="usage-fill"></span></div>
       </div>
       <p class="err" id="drive-err"></p>
+      <div id="wait-banner" class="banner hidden">Your account is waiting for the owner to approve it. You can open shared links, but you cannot upload yet.</div>
       <div id="share-banner" class="banner hidden"></div>
       <div id="collab-bar" class="collab-bar hidden">
         <div>
@@ -618,6 +627,15 @@
       </div>
     </section>
 
+    <section id="approvals" class="settings-page hidden">
+      <button type="button" class="ghost small settings-back" id="approvals-back">Back to files</button>
+      <div class="card">
+        <h2>Approvals</h2>
+        <p class="lead">New people can sign up, but they cannot upload until you accept them.</p>
+        <div id="approval-list"></div>
+      </div>
+    </section>
+
     <section id="notifications" class="settings-page hidden">
       <button type="button" class="ghost small settings-back" id="notifications-back">Back to files</button>
       <div class="card">
@@ -643,7 +661,7 @@
       <h2>Upload file</h2>
       <label for="upload-name">Name in this folder</label>
       <input id="upload-name" type="text" maxlength="200" />
-      <label><input id="compress-on" type="checkbox" checked /> Try to shrink before upload</label>
+      <label id="compress-row"><input id="compress-on" type="checkbox" checked /> Try to shrink this photo before upload</label>
       <div id="mode-row" class="modes">
         <label><input type="radio" name="cmode" id="mode-lossy" value="lossy" checked /> Lossy (JPEG — smaller, some quality lost)</label>
         <label><input type="radio" name="cmode" id="mode-lossless" value="lossless" /> Lossless (keep every pixel)</label>
@@ -898,14 +916,8 @@
     function suggestedName(file, compress, mode) {
       const original = cleanName(file.name);
       const base = stem(original);
-      if (!compress) return original;
-      if (isImageFile(file)) return mode === "lossy" ? base + ".jpg" : base + ".png";
-      return original + ".gz";
-    }
-
-    async function gzipBlob(blob) {
-      const stream = blob.stream().pipeThrough(new CompressionStream("gzip"));
-      return new Response(stream).blob();
+      if (!compress || !isImageFile(file)) return original;
+      return mode === "lossy" ? base + ".jpg" : base + ".png";
     }
 
     function canvasToBlob(canvas, type, quality) {
@@ -931,12 +943,10 @@
 
     async function buildUploadBlob() {
       const file = pendingFile;
-      if (!$("compress-on").checked) return { blob: file, kept: true };
+      if (!isImageFile(file) || !$("compress-on").checked) return { blob: file, kept: true };
       const mode = $("mode-lossy").checked ? "lossy" : "lossless";
       const quality = Number($("quality").value) / 100;
-      const next = isImageFile(file)
-        ? await recompressImage(file, mode, quality)
-        : await gzipBlob(file);
+      const next = await recompressImage(file, mode, quality);
       if (keepOriginal(next)) return { blob: file, kept: true };
       return { blob: next, kept: false };
     }
@@ -952,6 +962,11 @@
         const next = blob.size;
         const delta = orig - next;
         const mode = $("mode-lossy").checked ? "lossy" : "lossless";
+        if (!isImageFile(pendingFile)) {
+          $("upload-name").value = cleanName(pendingFile.name);
+          $("estimate").innerHTML = "Uploading <strong>" + formatSize(orig) + "</strong> as-is.";
+          return;
+        }
         if (kept && $("compress-on").checked) {
           $("upload-name").value = cleanName(pendingFile.name);
           if (isImageFile(pendingFile) && mode === "lossless") {
@@ -977,10 +992,11 @@
     }
 
     function syncCompressUI() {
-      const on = $("compress-on").checked;
       const img = pendingFile && isImageFile(pendingFile);
-      $("mode-row").classList.toggle("hidden", !on || !img);
-      $("quality-row").classList.toggle("hidden", !on || !img || !$("mode-lossy").checked);
+      const on = img && $("compress-on").checked;
+      $("compress-row").classList.toggle("hidden", !img);
+      $("mode-row").classList.toggle("hidden", !on);
+      $("quality-row").classList.toggle("hidden", !on || !$("mode-lossy").checked);
       if (pendingFile) {
         const mode = $("mode-lossy").checked ? "lossy" : "lossless";
         $("upload-name").value = suggestedName(pendingFile, on, mode);
@@ -992,9 +1008,10 @@
       pendingFile = file;
       pendingBlob = null;
       $("modal-err").textContent = "";
-      $("compress-on").checked = true;
-      $("mode-lossy").checked = isImageFile(file);
-      $("mode-lossless").checked = !isImageFile(file);
+      const img = isImageFile(file);
+      $("compress-on").checked = img;
+      $("mode-lossy").checked = img;
+      $("mode-lossless").checked = !img;
       $("quality").value = "75";
       $("upload-modal").classList.remove("hidden");
       syncCompressUI();
@@ -1009,6 +1026,10 @@
     }
 
     async function confirmUpload() {
+      if (!canWrite()) {
+        $("modal-err").textContent = "This account is waiting for the owner to approve it";
+        return;
+      }
       const name = ($("upload-name").value || "").trim();
       if (!name || name.includes("..") || name.includes("\\") || name.includes("/")) {
         $("modal-err").textContent = "Use a simple file name, no slashes";
@@ -1337,6 +1358,32 @@
         persistSavedAccount(p, "");
       }
       setUnreadBadge(p.unread_count || 0);
+      applyAccess();
+    }
+
+    function canWrite() {
+      return !!(profile && profile.approved);
+    }
+
+    function isOwner() {
+      return !!(profile && profile.is_admin);
+    }
+
+    function applyAccess() {
+      const allowed = canWrite();
+      $("wait-banner").classList.toggle("hidden", allowed);
+      $("upload").closest(".tool-group").classList.toggle("hidden", !allowed);
+      $("new-folder").closest(".tool-group").classList.toggle("hidden", !allowed);
+      $("invite-form").classList.toggle("hidden", !allowed);
+      $("open-approvals").classList.toggle("hidden", !isOwner());
+      setPendingBadge(profile && profile.pending_count);
+    }
+
+    function setPendingBadge(n) {
+      const count = Number(n) || 0;
+      const el = $("approval-badge");
+      el.textContent = count > 9 ? "9+" : String(count);
+      el.classList.toggle("hidden", count < 1);
     }
 
     function setUnreadBadge(n) {
@@ -1406,33 +1453,107 @@
       $("pfp").setAttribute("aria-expanded", open ? "true" : "false");
     }
 
+    function hidePages() {
+      $("drive").classList.add("hidden");
+      $("settings").classList.add("hidden");
+      $("notifications").classList.add("hidden");
+      $("approvals").classList.add("hidden");
+    }
+
     function openSettings() {
       closeAccountMenu();
       $("profile-err").textContent = "";
       $("profile-ok").textContent = "";
-      $("drive").classList.add("hidden");
-      $("notifications").classList.add("hidden");
+      hidePages();
       $("settings").classList.remove("hidden");
     }
 
     function closeSettings() {
-      $("settings").classList.add("hidden");
-      $("notifications").classList.add("hidden");
+      hidePages();
       $("drive").classList.remove("hidden");
     }
 
     function openNotifications() {
       closeAccountMenu();
-      $("drive").classList.add("hidden");
-      $("settings").classList.add("hidden");
+      hidePages();
       $("notifications").classList.remove("hidden");
       loadNotifications();
     }
 
+    function openApprovals() {
+      closeAccountMenu();
+      hidePages();
+      $("approvals").classList.remove("hidden");
+      loadApprovals();
+    }
+
+    async function loadApprovals() {
+      const box = $("approval-list");
+      box.textContent = "Loading…";
+      const res = await fetch("/v1/admin/users", { headers: { Authorization: "Bearer " + token() } });
+      if (!res.ok) {
+        box.textContent = "Could not load accounts.";
+        return;
+      }
+      const data = await res.json();
+      setPendingBadge(data.pending);
+      const users = data.users || [];
+      box.innerHTML = "";
+      if (!users.length) {
+        box.innerHTML = "<p class='lead'>No accounts yet.</p>";
+        return;
+      }
+      for (const u of users) {
+        const row = document.createElement("div");
+        row.className = "approval-item";
+        const mid = document.createElement("div");
+        const name = document.createElement("strong");
+        name.textContent = u.display_name || u.email;
+        const meta = document.createElement("span");
+        meta.textContent = u.is_admin
+          ? u.email + " · owner"
+          : u.approved
+            ? u.email + " · approved"
+            : u.email + " · waiting";
+        mid.append(name, document.createElement("br"), meta);
+        const actions = document.createElement("div");
+        actions.className = "actions";
+        if (!u.approved && !u.is_admin) {
+          const yes = document.createElement("button");
+          yes.type = "button";
+          yes.textContent = "Approve";
+          yes.onclick = () => decideUser(u.id, "approve");
+          const no = document.createElement("button");
+          no.type = "button";
+          no.className = "danger";
+          no.textContent = "Deny";
+          no.onclick = () => {
+            askConfirm(
+              "Deny this account?",
+              "Remove “" + (u.display_name || u.email) + "”? They will have to sign up again.",
+              "Deny",
+              () => decideUser(u.id, "deny"),
+            );
+          };
+          actions.append(yes, no);
+        }
+        row.append(mid, actions);
+        box.append(row);
+      }
+    }
+
+    async function decideUser(id, action) {
+      await fetch("/v1/admin/users/" + id + "/" + action, {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token() },
+      });
+      loadApprovals();
+      loadProfile();
+    }
+
     function showDrive() {
       $("auth").classList.add("hidden");
-      $("settings").classList.add("hidden");
-      $("notifications").classList.add("hidden");
+      hidePages();
       $("drive").classList.remove("hidden");
       $("who-bar").classList.remove("hidden");
       setView(viewMode);
@@ -1440,9 +1561,7 @@
       refresh();
     }
     function showAuth() {
-      $("drive").classList.add("hidden");
-      $("settings").classList.add("hidden");
-      $("notifications").classList.add("hidden");
+      hidePages();
       $("who-bar").classList.add("hidden");
       closeAccountMenu();
       closeConvert();
@@ -1612,17 +1731,18 @@
     }
 
     function shouldShowResume() {
-      return localStorage.getItem(rememberKey) === "1"
-        && !!readSavedAccount()
-        && sessionStorage.getItem(skipResumeKey) !== "1";
+      if (sessionStorage.getItem(skipResumeKey) === "1") return false;
+      if (localStorage.getItem(rememberKey) !== "1") return false;
+      return !!(token() || readSavedAccount());
     }
 
     function paintResumeCard() {
       const acc = readSavedAccount() || {};
-      const name = (acc.display_name || "").trim() || acc.email || "Saved account";
-      $("resume-name").textContent = name;
-      $("resume-email").textContent = acc.email || "";
-      const letter = initialsOf({ display_name: acc.display_name, email: acc.email });
+      const name = (acc.display_name || profile.display_name || "").trim();
+      const email = acc.email || profile.email || storedEmail() || "";
+      $("resume-name").textContent = name || "Welcome back";
+      $("resume-email").textContent = email;
+      const letter = initialsOf({ display_name: name, email: email });
       $("resume-letter").textContent = letter;
       if (acc.avatar) {
         $("resume-letter").classList.add("hidden");
@@ -1661,10 +1781,9 @@
 
       if (mode === "resume") {
         $("auth-title").textContent = "Log in as";
-        $("auth-lead").textContent = "Welcome back. Enter your password to open this vault.";
+        $("auth-lead").textContent = "Welcome back. Continue to open your vault.";
         $("name-row").classList.add("hidden");
         paintResumeCard();
-        $("resume-password").value = "";
         showPane("pane-resume", back);
         return;
       }
@@ -1720,11 +1839,13 @@
         $("auth-err").textContent = "Signed in, but the vault key could not be unlocked. Try signing in again.";
       }
       pendingPassword = "";
+      profile = Object.assign({}, profile, data);
+      applyAccess();
       showDrive();
     }
 
     function clearAuthForm() {
-      ["email", "password", "resume-password", "forgot-email", "code", "new-password", "first-name", "last-name"].forEach((id) => {
+      ["email", "password", "forgot-email", "code", "new-password", "first-name", "last-name"].forEach((id) => {
         $(id).value = "";
       });
       pendingEmail = "";
@@ -1819,34 +1940,38 @@
     $("tab-signup").onclick = () => setAuthMode("signup");
     $("auth-submit").onclick = submitAuth;
     $("forgot-open").onclick = () => setAuthMode("forgot");
-    $("forgot-back").onclick = () => setAuthMode(shouldShowResume() ? "resume" : "signin", true);
-    async function submitResume() {
-      const acc = readSavedAccount();
-      if (!acc) {
+    $("forgot-back").onclick = () => setAuthMode(shouldShowResume() && token() ? "resume" : "signin", true);
+    function signOutFully() {
+      sessionStorage.removeItem(tokenKey);
+      sessionStorage.removeItem(emailKey);
+      localStorage.removeItem(tokenKey);
+      localStorage.removeItem(emailKey);
+      clearDEK();
+      pendingPassword = "";
+      currentPrefix = "";
+      currentShare = null;
+    }
+    function openResumeVault() {
+      if (!token()) {
+        const acc = readSavedAccount();
+        if (acc) $("email").value = acc.email;
         setAuthMode("signin", true);
         return;
       }
-      $("remember-me").checked = true;
-      await withBusy($("resume-submit"), "Signing in…", async () => {
-        const data = await postAuth("/v1/auth/login", {
-          email: acc.email,
-          password: $("resume-password").value,
-        });
-        if (data) await saveSession(data, $("resume-password").value);
-      });
+      vaultDEK = readStoredDEK() || vaultDEK;
+      showDrive();
     }
-    $("resume-submit").onclick = submitResume;
-    $("resume-password").addEventListener("keydown", (e) => { if (e.key === "Enter") submitResume(); });
-    $("resume-forgot").onclick = () => {
-      const acc = readSavedAccount();
-      if (acc) $("forgot-email").value = acc.email;
-      setAuthMode("forgot");
-    };
+    $("resume-submit").onclick = openResumeVault;
+    $("resume-card").onclick = openResumeVault;
     $("resume-other").onclick = () => {
+      signOutFully();
+      localStorage.setItem(rememberKey, "0");
+      clearSavedAccount();
       sessionStorage.setItem(skipResumeKey, "1");
       $("email").value = "";
       $("password").value = "";
-      setAuthMode("signin");
+      $("remember-me").checked = false;
+      showAuth();
     };
     $("forgot-send").onclick = async () => {
       const email = $("forgot-email").value.trim();
@@ -1890,19 +2015,22 @@
     $("new-password").addEventListener("keydown", (e) => { if (e.key === "Enter") $("code-submit").click(); });
     $("forgot-email").addEventListener("keydown", (e) => { if (e.key === "Enter") $("forgot-send").click(); });
     $("logout").onclick = () => {
-      if (localStorage.getItem(rememberKey) === "1") persistSavedAccount(profile);
-      sessionStorage.removeItem(tokenKey);
-      sessionStorage.removeItem(emailKey);
-      localStorage.removeItem(tokenKey);
-      localStorage.removeItem(emailKey);
-      clearDEK();
-      pendingPassword = "";
+      persistSavedAccount(profile);
       currentPrefix = "";
+      currentShare = null;
+      pendingPassword = "";
+      if (localStorage.getItem(rememberKey) === "1" && token()) {
+        showAuth();
+        return;
+      }
+      signOutFully();
       showAuth();
     };
     $("pfp").onclick = (e) => { e.stopPropagation(); toggleAccountMenu(); };
     $("open-settings").onclick = openSettings;
     $("settings-back").onclick = closeSettings;
+    $("open-approvals").onclick = openApprovals;
+    $("approvals-back").onclick = closeSettings;
     $("open-notifications").onclick = openNotifications;
     $("notifications-back").onclick = closeSettings;
     $("mark-all-read").onclick = async () => {
@@ -1999,6 +2127,10 @@
     $("view-list").onclick = () => setView("list");
     $("view-grid").onclick = () => setView("grid");
     function openFolderForm(kind) {
+      if (!canWrite()) {
+        $("drive-err").textContent = "This account is waiting for the owner to approve it";
+        return;
+      }
       folderIntent = kind;
       $("drive-err").textContent = "";
       $("folder-form").classList.remove("hidden");
@@ -2101,7 +2233,13 @@
       if (e.target.id === "preview-modal") closePreview();
     });
 
-    $("upload").onclick = () => $("file").click();
+    $("upload").onclick = () => {
+      if (!canWrite()) {
+        $("drive-err").textContent = "This account is waiting for the owner to approve it";
+        return;
+      }
+      $("file").click();
+    };
     $("file").onchange = () => { if ($("file").files[0]) openUploadModal($("file").files[0]); };
 
     function driveOpen() {
@@ -2117,7 +2255,7 @@
     }
     let fileDragDepth = 0;
     document.addEventListener("dragenter", (e) => {
-      if (!driveOpen() || !isOsFileDrag(e)) return;
+      if (!driveOpen() || !canWrite() || !isOsFileDrag(e)) return;
       e.preventDefault();
       fileDragDepth += 1;
       $("page-drop").classList.remove("hidden");
@@ -2136,7 +2274,7 @@
       if (!isOsFileDrag(e)) return;
       e.preventDefault();
       hidePageDrop();
-      if (!driveOpen()) return;
+      if (!driveOpen() || !canWrite()) return;
       const file = e.dataTransfer.files[0];
       if (file) openUploadModal(file);
     });
@@ -2328,10 +2466,12 @@
       mid.append(title, meta);
       const actions = document.createElement("div");
       actions.className = "row-actions";
-      actions.append(iconBtn("trash", "Delete folder", "danger", (e) => {
-        e.stopPropagation();
-        askDeleteFolder(name);
-      }));
+      if (canWrite()) {
+        actions.append(iconBtn("trash", "Delete folder", "danger", (e) => {
+          e.stopPropagation();
+          askDeleteFolder(name);
+        }));
+      }
       li.append(icon, mid, actions);
       return li;
     }
@@ -2360,7 +2500,7 @@
       mid.append(title, meta);
       const actions = document.createElement("div");
       actions.className = "row-actions";
-      if (folder.role === "owner") {
+      if (canWrite() && folder.role === "owner") {
         actions.append(iconBtn("trash", "Delete shared folder", "danger", (e) => {
           e.stopPropagation();
           askConfirm(
@@ -2376,7 +2516,7 @@
             },
           );
         }));
-      } else {
+      } else if (canWrite()) {
         actions.append(iconBtn("trash", "Leave shared folder", "danger", (e) => {
           e.stopPropagation();
           askConfirm(
@@ -2400,7 +2540,7 @@
     function fileRow(f) {
       const k = kind(f.key);
       const li = document.createElement("li");
-      li.draggable = true;
+      li.draggable = canWrite();
       li.addEventListener("dragstart", (e) => {
         e.dataTransfer.setData(MOVE_TYPE, f.key);
         e.dataTransfer.setData("text/plain", f.key);
@@ -2436,14 +2576,17 @@
       mid.append(name, meta);
       const actions = document.createElement("div");
       actions.className = "row-actions";
-      const actionsList = [
-        iconBtn("share", "Share", "share", () => shareFile(f.key)),
-        iconBtn("convert", "Convert", "convert", () => openConvert(f.key)),
-      ];
-      actionsList.push(
-        iconBtn("download", "Download", "download", () => download(f.key)),
-        iconBtn("trash", "Delete", "danger", () => askDeleteFile(f)),
-      );
+      const actionsList = [];
+      if (canWrite()) {
+        actionsList.push(
+          iconBtn("share", "Share", "share", () => shareFile(f.key)),
+          iconBtn("convert", "Convert", "convert", () => openConvert(f.key)),
+        );
+      }
+      actionsList.push(iconBtn("download", "Download", "download", () => download(f.key)));
+      if (canWrite()) {
+        actionsList.push(iconBtn("trash", "Delete", "danger", () => askDeleteFile(f)));
+      }
       actions.append(...actionsList);
       li.append(icon, mid, actions);
       return li;
@@ -2486,7 +2629,7 @@
         body.textContent = n.body;
         text.append(title, body);
         row.append(text);
-        if (n.kind === "invite" && n.invite_id) {
+        if (n.kind === "invite" && n.invite_id && canWrite()) {
           const actions = document.createElement("div");
           actions.className = "actions";
           const accept = document.createElement("button");
@@ -2545,7 +2688,12 @@
 
     async function refresh() {
       const usageRes = await fetch("/v1/objects", { headers: { Authorization: "Bearer " + token() } });
-      if (usageRes.status === 401) { $("logout").click(); return; }
+      if (usageRes.status === 401) {
+        signOutFully();
+        localStorage.setItem(rememberKey, "0");
+        showAuth();
+        return;
+      }
       const usageData = await usageRes.json();
       const used = (usageData.usage && usageData.usage.used) || 0;
       const limit = (usageData.usage && usageData.usage.limit) || 5 * 1024 * 1024 * 1024;
@@ -2610,11 +2758,12 @@
     paintIcon("new-folder", "folder");
     paintIcon("new-shared", "people");
     $("remember-me").checked = localStorage.getItem(rememberKey) === "1";
-    if (token()) {
+    if (shouldShowResume()) {
+      vaultDEK = readStoredDEK();
+      setAuthMode("resume", true);
+    } else if (token()) {
       vaultDEK = readStoredDEK();
       showDrive();
-    } else if (shouldShowResume()) {
-      setAuthMode("resume", true);
     }
   </script>
 </body>

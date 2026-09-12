@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"minicloud/internal/auth"
+	"minicloud/internal/catalog"
 )
 
 type ctxKey int
@@ -35,6 +36,40 @@ func requireAuth(secret string) func(http.Handler) http.Handler {
 				return
 			}
 			next.ServeHTTP(w, r.WithContext(withUserID(r.Context(), id)))
+		})
+	}
+}
+
+func requireApproved(cat *catalog.DB) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			user, err := cat.UserByID(r.Context(), userIDFrom(r.Context()))
+			if err != nil {
+				writeError(w, http.StatusUnauthorized, "session expired, log in again")
+				return
+			}
+			if !user.Approved {
+				writeError(w, http.StatusForbidden, "this account is waiting for the owner to approve it")
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func requireAdmin(cat *catalog.DB) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			user, err := cat.UserByID(r.Context(), userIDFrom(r.Context()))
+			if err != nil {
+				writeError(w, http.StatusUnauthorized, "session expired, log in again")
+				return
+			}
+			if !user.IsAdmin {
+				writeError(w, http.StatusForbidden, "only the owner can do that")
+				return
+			}
+			next.ServeHTTP(w, r)
 		})
 	}
 }

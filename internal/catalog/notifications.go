@@ -10,6 +10,7 @@ const (
 	NotifInvite         = "invite"
 	NotifInviteAccepted = "invite_accepted"
 	NotifInviteDeclined = "invite_declined"
+	NotifApproval       = "approval"
 )
 
 type Notification struct {
@@ -137,6 +138,25 @@ func (db *DB) EnsureInviteNotifications(ctx context.Context, user *User) error {
 	for _, inv := range pending {
 		body := inv.InviterName + " invited you to collaborate on “" + inv.FolderName + "”."
 		if err := db.upsertInviteNotification(ctx, user.ID, inv.ID, inv.FolderID, inv.FolderName, body); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (db *DB) NotifyAdmins(ctx context.Context, title, body string) error {
+	admins, err := db.ListAdmins(ctx)
+	if err != nil {
+		return err
+	}
+	for _, admin := range admins {
+		if err := db.AddNotification(ctx, Notification{
+			UserID: admin.ID,
+			Kind:   NotifApproval,
+			Title:  title,
+			Body:   body,
+			Unread: true,
+		}); err != nil {
 			return err
 		}
 	}

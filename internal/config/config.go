@@ -28,6 +28,8 @@ type Config struct {
 	ResendAPIKey    string
 	ResendFrom      string
 	MailLog         bool
+	AdminEmail      string
+	AdminPassword   string
 }
 
 func Load() (Config, error) {
@@ -71,6 +73,8 @@ func Load() (Config, error) {
 		ResendAPIKey:    strings.TrimSpace(os.Getenv("RESEND_API_KEY")),
 		ResendFrom:      env("RESEND_FROM", "SafeKeeping <onboarding@resend.dev>"),
 		MailLog:         envBool("MAIL_LOG", smtpHost == "" && strings.TrimSpace(os.Getenv("RESEND_API_KEY")) == ""),
+		AdminEmail:      strings.ToLower(strings.TrimSpace(os.Getenv("ADMIN_EMAIL"))),
+		AdminPassword:   os.Getenv("ADMIN_PASSWORD"),
 	}
 	if strings.TrimSpace(cfg.SMTPPass) == "" {
 		cfg.SMTPHost = ""

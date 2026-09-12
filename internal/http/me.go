@@ -18,15 +18,22 @@ func (h authHandlers) profileJSON(ctx context.Context, u *catalog.User) map[stri
 	if h.catalog != nil {
 		unread, _ = h.catalog.UnreadNotificationCount(ctx, u.ID)
 	}
+	pending := 0
+	if u.IsAdmin && h.catalog != nil {
+		pending, _ = h.catalog.PendingCount(ctx)
+	}
 	return map[string]any{
-		"email":         u.Email,
-		"display_name":  u.DisplayName,
-		"theme":         u.Theme,
-		"accent":        u.Accent,
-		"has_avatar":    h.avatars != nil && h.avatars.Exists(u.ID),
-		"unread_count":  unread,
-		"vault_salt":    u.VaultSalt,
-		"vault_wrap":    u.VaultWrap,
+		"email":          u.Email,
+		"display_name":   u.DisplayName,
+		"theme":          u.Theme,
+		"accent":         u.Accent,
+		"has_avatar":     h.avatars != nil && h.avatars.Exists(u.ID),
+		"unread_count":   unread,
+		"vault_salt":     u.VaultSalt,
+		"vault_wrap":     u.VaultWrap,
+		"approved":       u.Approved,
+		"is_admin":       u.IsAdmin,
+		"pending_count":  pending,
 	}
 }
 

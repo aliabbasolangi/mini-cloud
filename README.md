@@ -41,6 +41,8 @@ Railway Hobby and Trial block outbound SMTP, so Gmail will fail there. Use Resen
 
 The app also reads `PORT` from the host. Do not commit `.env`.
 
+Set the owner account with Railway variables `ADMIN_EMAIL` and `ADMIN_PASSWORD`. Those values stay on the host. They are never hardcoded, and a real `.env` must not be committed. If that email already exists, it is promoted to owner and the password is left alone. If it does not exist yet, the server creates it on boot.
+
 ## Settings
 
 | Variable | Default | Meaning |
@@ -48,6 +50,8 @@ The app also reads `PORT` from the host. Do not commit `.env`.
 | `HTTP_ADDR` | `0.0.0.0:8080` | Where the server listens |
 | `MAX_UPLOAD_MB` | `32` | Largest file you can upload |
 | `JWT_SECRET` | (auto file in `data/.jwt-secret`) | Signs login tokens |
+| `ADMIN_EMAIL` | (unset) | Owner email. Set in host variables, never commit |
+| `ADMIN_PASSWORD` | (unset) | Creates the owner only if that email is new. Never commit |
 
 See `.env.example`. Do not commit a real `.env`.
 
