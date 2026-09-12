@@ -239,8 +239,7 @@ func (h authHandlers) issueCode(w http.ResponseWriter, r *http.Request, email, p
 	if err := h.mail.SendCode(email, purpose, code); err != nil {
 		log.Printf("mail send: %v", err)
 		_ = h.catalog.DeleteEmailCode(r.Context(), email, purpose)
-		msg := "could not send the email. Railway blocks Gmail SMTP on Hobby/Trial. Set MAIL_LOG=1 to read codes in Deploy logs, or add a RESEND_API_KEY."
-		writeError(w, http.StatusBadGateway, msg)
+		writeError(w, http.StatusBadGateway, "could not send the email: "+err.Error())
 		return err
 	}
 	return nil

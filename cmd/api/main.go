@@ -45,10 +45,13 @@ func main() {
 	log.Printf("avatars         -> %s", cfg.AvatarDir)
 	log.Printf("catalog (names) -> %s", cfg.DatabasePath)
 	log.Printf("jwt secret      -> %s", cfg.JWTSecretSource)
-	if cfg.SMTPHost == "" {
-		log.Printf("mail            -> server log (set SMTP_HOST to send real codes)")
-	} else {
+	switch {
+	case cfg.ResendAPIKey != "":
+		log.Printf("mail            -> resend from %s", cfg.ResendFrom)
+	case cfg.SMTPHost != "":
 		log.Printf("mail            -> smtp %s:%d from %s", cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPFrom)
+	default:
+		log.Printf("mail            -> server log (set RESEND_API_KEY or SMTP_HOST to send real codes)")
 	}
 	log.Printf("max upload      -> %d MB", cfg.MaxUploadBytes/1024/1024)
 	log.Printf("vault limit     -> %d GB", cfg.MaxStorageBytes/1024/1024/1024)
