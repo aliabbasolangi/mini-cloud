@@ -31,6 +31,9 @@ func New(store blob.Store, cat *catalog.DB, thumbs *thumb.Store, avatars *avatar
 	}
 
 	r.Get("/healthz", health)
+	r.Get("/logo.png", serveLogo)
+	r.Get("/favicon.ico", serveLogo)
+	r.Get("/apple-touch-icon.png", serveLogo)
 	r.Get("/s/{token}/raw", objH.publicGet)
 	r.Get("/s/{token}", objH.publicPage)
 	r.Post("/v1/auth/register/start", authH.registerStart)
