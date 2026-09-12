@@ -127,6 +127,13 @@
       font-size: 28px; font-weight: 700;
       overflow: hidden; position: relative; margin: 0 0 14px;
     }
+    .resume-face {
+      display: flex; flex-direction: column; align-items: center;
+      text-align: center; margin: 4px 0 22px;
+    }
+    .resume-face .pfp-xl { margin: 0 0 12px; }
+    .resume-face strong { display: block; font-size: 20px; letter-spacing: -0.03em; }
+    .resume-face span { color: var(--muted); font-size: 13px; word-break: break-all; }
     .account-menu {
       position: absolute; right: 0; top: calc(100% + 8px);
       width: 240px; padding: 8px;
@@ -459,11 +466,11 @@
           <div id="name-row" class="name-row hidden">
             <div>
               <label for="first-name">First name</label>
-              <input id="first-name" type="text" maxlength="40" autocomplete="given-name" placeholder="Ali" />
+              <input id="first-name" type="text" maxlength="40" autocomplete="given-name" />
             </div>
             <div>
               <label for="last-name">Last name <span>optional</span></label>
-              <input id="last-name" type="text" maxlength="40" autocomplete="family-name" placeholder="Abbas" />
+              <input id="last-name" type="text" maxlength="40" autocomplete="family-name" />
             </div>
           </div>
           <label for="email">Email</label>
@@ -477,6 +484,26 @@
           <button type="button" class="auth-go" id="auth-submit">Sign in</button>
           <p class="auth-links" id="signin-links">
             <button type="button" class="link" id="forgot-open">Forgot password?</button>
+          </p>
+        </div>
+
+        <div class="auth-pane hidden" id="pane-resume">
+          <div class="resume-face">
+            <div class="pfp-xl" id="resume-pfp">
+              <span id="resume-letter">?</span>
+              <img id="resume-img" class="hidden" alt="" />
+            </div>
+            <strong id="resume-name"></strong>
+            <span id="resume-email"></span>
+          </div>
+          <label for="resume-password">Password</label>
+          <input id="resume-password" type="password" autocomplete="current-password" />
+          <button type="button" class="auth-go" id="resume-submit">Sign in</button>
+          <p class="auth-links">
+            <button type="button" class="link" id="resume-forgot">Forgot password?</button>
+          </p>
+          <p class="auth-links">
+            <button type="button" class="link" id="resume-other">Different account</button>
           </p>
         </div>
 
@@ -698,6 +725,8 @@
     const emailKey = "minicloud.email";
     const rememberKey = "minicloud.remember";
     const savedEmailKey = "minicloud.saved-email";
+    const savedAccountKey = "minicloud.saved-account";
+    const skipResumeKey = "minicloud.skip-resume";
     const viewKey = "minicloud.view";
     const dekKey = "minicloud.dek";
     const token = () => sessionStorage.getItem(tokenKey) || localStorage.getItem(tokenKey);
@@ -1276,7 +1305,8 @@
         showInitials(initialsOf(profile));
         return;
       }
-      pfpObjectURL = URL.createObjectURL(await r.blob());
+      const blob = await r.blob();
+      pfpObjectURL = URL.createObjectURL(blob);
       $("pfp-letter").classList.add("hidden");
       $("pfp-img").classList.remove("hidden");
       $("pfp-img").src = pfpObjectURL;
@@ -1284,6 +1314,9 @@
       $("settings-pfp-img").classList.remove("hidden");
       $("settings-pfp-img").src = pfpObjectURL;
       $("avatar-remove").classList.remove("hidden");
+      const reader = new FileReader();
+      reader.onload = () => persistSavedAccount(profile, reader.result);
+      reader.readAsDataURL(blob);
     }
 
     function applyProfile(p) {
@@ -1299,7 +1332,10 @@
       $("theme-light").classList.toggle("active", p.theme === "light");
       renderSwatches();
       if (p.has_avatar) showAvatarPhoto();
-      else showInitials(letter);
+      else {
+        showInitials(letter);
+        persistSavedAccount(p, "");
+      }
       setUnreadBadge(p.unread_count || 0);
     }
 
@@ -1416,7 +1452,8 @@
       currentPrefix = "";
       clearAuthForm();
       $("remember-me").checked = localStorage.getItem(rememberKey) === "1";
-      setAuthMode("signin", true);
+      if (shouldShowResume()) setAuthMode("resume", true);
+      else setAuthMode("signin", true);
     }
 
     function convertTargets(name) {
@@ -1547,13 +1584,64 @@
     let pendingEmail = "";
     let codePurpose = "register";
 
+    function readSavedAccount() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(savedAccountKey) || "null");
+        if (raw && raw.email) return raw;
+      } catch (_) {}
+      const email = localStorage.getItem(savedEmailKey) || "";
+      return email ? { email, display_name: "", avatar: "" } : null;
+    }
+
+    function persistSavedAccount(p, avatarData) {
+      if (localStorage.getItem(rememberKey) !== "1") return;
+      const prev = readSavedAccount() || {};
+      const email = (p && p.email) || prev.email || storedEmail() || "";
+      if (!email) return;
+      localStorage.setItem(savedEmailKey, email);
+      localStorage.setItem(savedAccountKey, JSON.stringify({
+        email,
+        display_name: (p && p.display_name) || prev.display_name || "",
+        avatar: avatarData !== undefined ? avatarData : (prev.avatar || ""),
+      }));
+    }
+
+    function clearSavedAccount() {
+      localStorage.removeItem(savedAccountKey);
+      localStorage.removeItem(savedEmailKey);
+    }
+
+    function shouldShowResume() {
+      return localStorage.getItem(rememberKey) === "1"
+        && !!readSavedAccount()
+        && sessionStorage.getItem(skipResumeKey) !== "1";
+    }
+
+    function paintResumeCard() {
+      const acc = readSavedAccount() || {};
+      const name = (acc.display_name || "").trim() || acc.email || "Saved account";
+      $("resume-name").textContent = name;
+      $("resume-email").textContent = acc.email || "";
+      const letter = initialsOf({ display_name: acc.display_name, email: acc.email });
+      $("resume-letter").textContent = letter;
+      if (acc.avatar) {
+        $("resume-letter").classList.add("hidden");
+        $("resume-img").classList.remove("hidden");
+        $("resume-img").src = acc.avatar;
+      } else {
+        $("resume-letter").classList.remove("hidden");
+        $("resume-img").classList.add("hidden");
+        $("resume-img").removeAttribute("src");
+      }
+    }
+
     function clearAuthNotes() {
       $("auth-err").textContent = "";
       $("auth-ok").textContent = "";
     }
 
     function showPane(id, back) {
-      ["pane-form", "pane-forgot", "pane-code"].forEach((pane) => {
+      ["pane-form", "pane-resume", "pane-forgot", "pane-code"].forEach((pane) => {
         const el = $(pane);
         el.classList.toggle("hidden", pane !== id);
         el.classList.toggle("back", pane === id && back);
@@ -1570,6 +1658,16 @@
       switcher.classList.toggle("signup", signup);
       $("tab-signin").classList.toggle("on", signin);
       $("tab-signup").classList.toggle("on", signup);
+
+      if (mode === "resume") {
+        $("auth-title").textContent = "Log in as";
+        $("auth-lead").textContent = "Welcome back. Enter your password to open this vault.";
+        $("name-row").classList.add("hidden");
+        paintResumeCard();
+        $("resume-password").value = "";
+        showPane("pane-resume", back);
+        return;
+      }
 
       if (signin || signup) {
         $("auth-title").textContent = signin ? "Welcome back" : "Claim your vault";
@@ -1612,8 +1710,9 @@
       const store = remember ? localStorage : sessionStorage;
       store.setItem(tokenKey, data.token);
       store.setItem(emailKey, data.email);
-      if (remember) localStorage.setItem(savedEmailKey, data.email);
-      else localStorage.removeItem(savedEmailKey);
+      if (remember) persistSavedAccount(data);
+      else clearSavedAccount();
+      sessionStorage.removeItem(skipResumeKey);
       try {
         await unlockOrCreateVault(data, password || pendingPassword);
       } catch (err) {
@@ -1625,7 +1724,7 @@
     }
 
     function clearAuthForm() {
-      ["email", "password", "forgot-email", "code", "new-password", "first-name", "last-name"].forEach((id) => {
+      ["email", "password", "resume-password", "forgot-email", "code", "new-password", "first-name", "last-name"].forEach((id) => {
         $(id).value = "";
       });
       pendingEmail = "";
@@ -1720,7 +1819,35 @@
     $("tab-signup").onclick = () => setAuthMode("signup");
     $("auth-submit").onclick = submitAuth;
     $("forgot-open").onclick = () => setAuthMode("forgot");
-    $("forgot-back").onclick = () => setAuthMode("signin", true);
+    $("forgot-back").onclick = () => setAuthMode(shouldShowResume() ? "resume" : "signin", true);
+    async function submitResume() {
+      const acc = readSavedAccount();
+      if (!acc) {
+        setAuthMode("signin", true);
+        return;
+      }
+      $("remember-me").checked = true;
+      await withBusy($("resume-submit"), "Signing in…", async () => {
+        const data = await postAuth("/v1/auth/login", {
+          email: acc.email,
+          password: $("resume-password").value,
+        });
+        if (data) await saveSession(data, $("resume-password").value);
+      });
+    }
+    $("resume-submit").onclick = submitResume;
+    $("resume-password").addEventListener("keydown", (e) => { if (e.key === "Enter") submitResume(); });
+    $("resume-forgot").onclick = () => {
+      const acc = readSavedAccount();
+      if (acc) $("forgot-email").value = acc.email;
+      setAuthMode("forgot");
+    };
+    $("resume-other").onclick = () => {
+      sessionStorage.setItem(skipResumeKey, "1");
+      $("email").value = "";
+      $("password").value = "";
+      setAuthMode("signin");
+    };
     $("forgot-send").onclick = async () => {
       const email = $("forgot-email").value.trim();
       await withBusy($("forgot-send"), "Sending code…", async () => {
@@ -1763,6 +1890,7 @@
     $("new-password").addEventListener("keydown", (e) => { if (e.key === "Enter") $("code-submit").click(); });
     $("forgot-email").addEventListener("keydown", (e) => { if (e.key === "Enter") $("forgot-send").click(); });
     $("logout").onclick = () => {
+      if (localStorage.getItem(rememberKey) === "1") persistSavedAccount(profile);
       sessionStorage.removeItem(tokenKey);
       sessionStorage.removeItem(emailKey);
       localStorage.removeItem(tokenKey);
@@ -1819,6 +1947,9 @@
         return;
       }
       closeDeleteAccount();
+      localStorage.setItem(rememberKey, "0");
+      clearSavedAccount();
+      sessionStorage.removeItem(skipResumeKey);
       $("logout").click();
     };
     $("avatar-pick").onclick = () => $("avatar-file").click();
@@ -2482,9 +2613,8 @@
     if (token()) {
       vaultDEK = readStoredDEK();
       showDrive();
-    }
-    else if (localStorage.getItem(rememberKey) === "1") {
-      $("email").value = localStorage.getItem(savedEmailKey) || "";
+    } else if (shouldShowResume()) {
+      setAuthMode("resume", true);
     }
   </script>
 </body>
