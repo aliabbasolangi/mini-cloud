@@ -1545,9 +1545,10 @@
     }
 
     function codeHint(data) {
-      const extra = data.delivery === "log"
-        ? " If this machine is not sending mail yet, the code is also in the Mini Cloud server window."
-        : "";
+      let extra = "";
+      if (data.delivery === "log") {
+        extra = " Open Railway → mini-cloud → Deployments → Logs and search for “mail code”. Locally it is in the server window.";
+      }
       $("auth-ok").textContent = (data.message || "Code sent.") + extra;
     }
 

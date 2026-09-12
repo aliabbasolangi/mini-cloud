@@ -35,7 +35,13 @@ type comboMailer struct {
 
 func New(cfg config.Config) Mailer {
 	var inner Mailer
-	if strings.TrimSpace(cfg.SMTPHost) != "" {
+	if key := strings.TrimSpace(cfg.ResendAPIKey); key != "" {
+		from := strings.TrimSpace(cfg.ResendFrom)
+		if from == "" {
+			from = "Mini Cloud <onboarding@resend.dev>"
+		}
+		inner = resendMailer{key: key, from: from}
+	} else if strings.TrimSpace(cfg.SMTPHost) != "" {
 		from := strings.TrimSpace(cfg.SMTPFrom)
 		if from == "" {
 			from = cfg.SMTPUser
@@ -65,6 +71,9 @@ func (logMailer) SendCode(to, purpose, code string) error {
 }
 
 func (c comboMailer) Delivery() string {
+	if c.log {
+		return "log"
+	}
 	if c.inner != nil {
 		return c.inner.Delivery()
 	}
@@ -75,8 +84,15 @@ func (c comboMailer) SendCode(to, purpose, code string) error {
 	if c.log {
 		log.Printf("mail code [%s] to %s: %s", purpose, to, code)
 	}
-	if c.inner != nil {
-		return c.inner.SendCode(to, purpose, code)
+	if c.inner == nil {
+		return nil
+	}
+	if err := c.inner.SendCode(to, purpose, code); err != nil {
+		if c.log {
+			log.Printf("mail send failed, using the log copy: %v", err)
+			return nil
+		}
+		return err
 	}
 	return nil
 }
@@ -106,6 +122,15 @@ func (s smtpMailer) SendCode(to, purpose, code string) error {
 	addr := fmt.Sprintf("%s:%d", s.host, s.port)
 	auth := smtp.PlainAuth("", s.user, s.pass, s.host)
 	return sendSMTP(addr, s.host, s.port, auth, fromAddr, to, []byte(msg))
+}
+
+// implicitTLSAuth lets smtp.PlainAuth run on port 465. Go only sets
+// ServerInfo.TLS after STARTTLS, so implicit TLS looks "unencrypted" otherwise.
+type implicitTLSAuth struct{ smtp.Auth }
+
+func (a implicitTLSAuth) Start(server *smtp.ServerInfo) (string, []byte, error) {
+	server.TLS = true
+	return a.Auth.Start(server)
 }
 
 func envelopeAddr(from string) string {
@@ -147,6 +172,9 @@ func sendSMTP(addr, host string, port int, auth smtp.Auth, from, to string, msg 
 		}
 	}
 	if auth != nil {
+		if port == 465 {
+			auth = implicitTLSAuth{auth}
+		}
 		if err := client.Auth(auth); err != nil {
 			return err
 		}

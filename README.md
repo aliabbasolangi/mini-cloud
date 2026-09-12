@@ -37,6 +37,8 @@ SMTP_FROM=Mini Cloud <your-2fa-mailbox@gmail.com>
 MAIL_LOG=0
 ```
 
+Railway Hobby and Trial block outbound SMTP, so Gmail will fail there. Use Resend over HTTPS (`RESEND_API_KEY`) or set `MAIL_LOG=1` and read codes from Deploy logs.
+
 The app also reads `PORT` from the host. Do not commit `.env`.
 
 ## Settings

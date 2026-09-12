@@ -25,6 +25,8 @@ type Config struct {
 	SMTPUser        string
 	SMTPPass        string
 	SMTPFrom        string
+	ResendAPIKey    string
+	ResendFrom      string
 	MailLog         bool
 }
 
@@ -66,11 +68,15 @@ func Load() (Config, error) {
 		SMTPUser:        os.Getenv("SMTP_USER"),
 		SMTPPass:        os.Getenv("SMTP_PASS"),
 		SMTPFrom:        env("SMTP_FROM", os.Getenv("SMTP_USER")),
-		MailLog:         envBool("MAIL_LOG", smtpHost == ""),
+		ResendAPIKey:    strings.TrimSpace(os.Getenv("RESEND_API_KEY")),
+		ResendFrom:      env("RESEND_FROM", "Mini Cloud <onboarding@resend.dev>"),
+		MailLog:         envBool("MAIL_LOG", smtpHost == "" && strings.TrimSpace(os.Getenv("RESEND_API_KEY")) == ""),
 	}
 	if strings.TrimSpace(cfg.SMTPPass) == "" {
 		cfg.SMTPHost = ""
-		cfg.MailLog = true
+		if cfg.ResendAPIKey == "" {
+			cfg.MailLog = true
+		}
 	}
 
 	secret, source, err := resolveSecret(
