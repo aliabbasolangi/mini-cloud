@@ -3,6 +3,7 @@ package http
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"path"
@@ -139,4 +140,60 @@ func (h objectHandlers) convert(w http.ResponseWriter, r *http.Request) {
 		"to":      to,
 		"created": saved.CreatedAt,
 	})
+}
+
+func (h objectHandlers) convertRaw(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseMultipartForm(h.maxUpload + 1<<20); err != nil {
+		writeError(w, http.StatusBadRequest, "send the file as multipart form data")
+		return
+	}
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "attach the file to convert")
+		return
+	}
+	defer file.Close()
+
+	src, err := io.ReadAll(io.LimitReader(file, h.maxUpload+1))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not read file")
+		return
+	}
+	if int64(len(src)) > h.maxUpload {
+		writeError(w, http.StatusRequestEntityTooLarge, "file is too large to convert")
+		return
+	}
+
+	to := convert.NormalizeTo(r.FormValue("to"))
+	if to == "" {
+		writeError(w, http.StatusBadRequest, "say what format to convert to")
+		return
+	}
+	srcName := strings.TrimSpace(r.FormValue("name"))
+	if srcName == "" && header != nil {
+		srcName = header.Filename
+	}
+	if srcName == "" {
+		srcName = "file"
+	}
+
+	out, err := convert.Convert(src, srcName, to)
+	if errors.Is(err, convert.ErrUnsupported) {
+		writeError(w, http.StatusBadRequest, "that conversion is not supported yet — images, text, Word, and PDF work")
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not convert this file")
+		return
+	}
+
+	ctype := out.ContentType
+	if ctype == "" {
+		ctype = "application/octet-stream"
+	}
+	w.Header().Set("Content-Type", ctype)
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename=%q`, out.Name))
+	w.Header().Set("X-Converted-Name", out.Name)
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(out.Bytes)
 }

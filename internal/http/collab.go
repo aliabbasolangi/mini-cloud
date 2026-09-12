@@ -117,7 +117,7 @@ func (h objectHandlers) inviteCollab(w http.ResponseWriter, r *http.Request) {
 			"id":      inv.ID,
 			"email":   inv.Email,
 			"folder":  inv.FolderName,
-			"message": "They will see the invite the next time they open Mini Cloud.",
+			"message": "They will see the invite the next time they open SafeKeeping.",
 		})
 	}
 }

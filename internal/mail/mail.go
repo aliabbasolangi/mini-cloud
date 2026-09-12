@@ -38,7 +38,7 @@ func New(cfg config.Config) Mailer {
 	if key := strings.TrimSpace(cfg.ResendAPIKey); key != "" {
 		from := strings.TrimSpace(cfg.ResendFrom)
 		if from == "" {
-			from = "Mini Cloud <onboarding@resend.dev>"
+			from = "SafeKeeping <onboarding@resend.dev>"
 		}
 		inner = resendMailer{key: key, from: from}
 	} else if strings.TrimSpace(cfg.SMTPHost) != "" {
@@ -100,14 +100,14 @@ func (c comboMailer) SendCode(to, purpose, code string) error {
 func (s smtpMailer) Delivery() string { return "smtp" }
 
 func (s smtpMailer) SendCode(to, purpose, code string) error {
-	subject := "Your Mini Cloud verification code"
+	subject := "Your SafeKeeping verification code"
 	why := "confirm your email and finish creating your account"
 	if purpose == catalog.PurposeReset {
-		subject = "Reset your Mini Cloud password"
+		subject = "Reset your SafeKeeping password"
 		why = "reset your password"
 	}
 
-	body := fmt.Sprintf("Your Mini Cloud code is %s\n\nUse it to %s. It expires in 10 minutes.\nIf you did not ask for this, ignore the email.\n", code, why)
+	body := fmt.Sprintf("Your SafeKeeping code is %s\n\nUse it to %s. It expires in 10 minutes.\nIf you did not ask for this, ignore the email.\n", code, why)
 	fromAddr := envelopeAddr(s.from)
 	msg := strings.Join([]string{
 		"From: " + s.from,

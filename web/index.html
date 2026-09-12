@@ -3,31 +3,36 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mini Cloud</title>
+  <title>SafeKeeping</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,560;0,9..144,700;1,9..144,560&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg: #12141a;
-      --bg-2: #1a1d26;
-      --card: #222632;
-      --ink: #f2efe8;
-      --muted: #9a958c;
-      --line: #323644;
-      --accent: #d4a574;
-      --accent-ink: #1a140c;
+      --bg: #070b0a;
+      --bg-2: #101816;
+      --card: #141c1aee;
+      --ink: #f6f1e6;
+      --muted: #9aa89f;
+      --line: #2a3833;
+      --accent: #e3c27a;
+      --accent-ink: #1a1408;
       --danger: #e07a6a;
-      --ok: #8fbf9f;
-      --hover: #2a241c;
+      --ok: #6fbf9a;
+      --hover: #24302a;
+      --glow: rgba(227, 194, 122, 0.16);
     }
     :root.theme-light {
-      --bg: #f3efe6;
+      --bg: #f4efe4;
       --bg-2: #fffdf8;
-      --card: #ffffff;
+      --card: #fffffff2;
       --ink: #1c1814;
-      --muted: #6f6a62;
-      --line: #e0d8cc;
+      --muted: #6b655c;
+      --line: #e2d8c8;
       --danger: #b54b3c;
-      --ok: #3d7a55;
-      --hover: #efe4d4;
+      --ok: #2f7a52;
+      --hover: #efe4d0;
+      --glow: rgba(196, 154, 70, 0.18);
     }
     * { box-sizing: border-box; }
     html, body { height: 100%; }
@@ -35,9 +40,15 @@
       margin: 0;
       color: var(--ink);
       background:
-        radial-gradient(900px 420px at 10% -10%, #2a241c 0%, transparent 55%),
+        radial-gradient(900px 520px at 8% -12%, var(--glow), transparent 58%),
+        radial-gradient(720px 420px at 100% 0%, rgba(80, 140, 120, 0.16), transparent 52%),
+        linear-gradient(180deg, #0c1412 0%, var(--bg) 38%);
+      font: 15px/1.5 Outfit, "Segoe UI", sans-serif;
+    }
+    :root.theme-light body {
+      background:
+        radial-gradient(900px 520px at 8% -12%, var(--glow), transparent 58%),
         var(--bg);
-      font: 15px/1.5 "Segoe UI", "Helvetica Neue", sans-serif;
     }
     .shell { max-width: 980px; margin: 0 auto; padding: 28px 20px 64px; }
     header.app {
@@ -49,15 +60,16 @@
     }
     .brand { display: flex; align-items: center; gap: 12px; }
     .mark {
-      width: 36px; height: 36px;
-      border-radius: 10px;
-      background: var(--accent);
+      width: 40px; height: 40px;
+      border-radius: 12px;
+      background: linear-gradient(160deg, #f0d59a, var(--accent) 55%, #b8893a);
       color: var(--accent-ink);
       display: grid;
       place-items: center;
-      font-weight: 700;
+      box-shadow: 0 8px 22px var(--glow);
     }
-    .brand h1 { margin: 0; font-size: 20px; letter-spacing: -0.03em; }
+    .mark svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .brand h1 { margin: 0; font-size: 22px; letter-spacing: -0.04em; font-family: Fraunces, Georgia, serif; font-weight: 700; }
     .brand span { color: var(--muted); font-size: 13px; }
     .account { position: relative; }
     .pfp-wrap { position: relative; display: inline-block; }
@@ -156,13 +168,16 @@
     button.icon-btn.share:hover, button.icon-btn.convert:hover { color: var(--accent); border-color: var(--accent); background: var(--hover); filter: none; }
     button.icon-btn.download:hover { color: var(--ok); border-color: var(--ok); background: #1c2a22; filter: none; }
     button.icon-btn.danger:hover { color: var(--danger); border-color: var(--danger); background: #2a1c1c; filter: none; }
-    .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 28px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 28px; backdrop-filter: blur(16px); }
     .auth-wrap {
       max-width: 440px; margin: 56px auto 0;
-      box-shadow: 0 24px 64px rgba(0,0,0,0.28);
+      box-shadow: 0 28px 80px rgba(0,0,0,0.38);
       overflow: hidden;
     }
-    .auth-wrap h2 { margin: 0 0 6px; font-size: 24px; letter-spacing: -0.03em; }
+    .auth-wrap h2 { margin: 0 0 6px; font-size: 28px; letter-spacing: -0.04em; font-family: Fraunces, Georgia, serif; }
+    .name-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .name-row.hidden { display: none; }
+    .name-row label span { font-weight: 400; opacity: 0.7; }
     .auth-wrap p.lead { color: var(--muted); margin: 0 0 20px; }
     .auth-switch {
       position: relative;
@@ -229,8 +244,14 @@
     label { display: block; font-size: 12px; color: var(--muted); margin: 0 0 6px; }
     input[type="email"], input[type="password"], input[type="text"], select {
       width: 100%; padding: 11px 12px; margin-bottom: 14px;
-      border: 1px solid var(--line); border-radius: 8px;
-      background: var(--bg-2); color: var(--ink); font: inherit;
+      border: 1px solid var(--line); border-radius: 10px;
+      background: #0c1211; color: var(--ink); font: inherit;
+    }
+    :root.theme-light input[type="email"],
+    :root.theme-light input[type="password"],
+    :root.theme-light input[type="text"],
+    :root.theme-light select {
+      background: #fffdf8;
     }
     select { cursor: pointer; }
     input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
@@ -273,10 +294,10 @@
       background: var(--accent); color: var(--accent-ink);
     }
     .settings-page { max-width: 520px; }
-    .settings-page h2 { margin: 0 0 6px; font-size: 22px; }
+    .settings-page h2 { margin: 0 0 6px; font-size: 26px; font-family: Fraunces, Georgia, serif; }
     .settings-page .lead { color: var(--muted); margin: 0 0 22px; }
     .settings-back { margin-bottom: 16px; }
-    .files { list-style: none; padding: 8px 12px; margin: 0; }
+    .files { list-style: none; padding: 8px 12px; margin: 0; box-shadow: 0 18px 50px rgba(0,0,0,0.18); }
     .files.list li {
       display: grid; grid-template-columns: 48px 1fr auto;
       align-items: center; gap: 12px; padding: 12px 8px;
@@ -393,10 +414,12 @@
   <div class="shell">
     <header class="app">
       <div class="brand">
-        <div class="mark">M</div>
+        <div class="mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/><circle cx="12" cy="16" r="1.2"/></svg>
+        </div>
         <div>
-          <h1>Mini Cloud</h1>
-          <span>Private files on this machine</span>
+          <h1>SafeKeeping</h1>
+          <span>A locked vault for your files</span>
         </div>
       </div>
       <div class="account hidden" id="who-bar">
@@ -423,7 +446,7 @@
 
     <section id="auth" class="auth-wrap card">
       <h2 id="auth-title">Welcome back</h2>
-      <p class="lead" id="auth-lead">Sign in to open your vault. Personal files are encrypted in your browser before upload.</p>
+      <p class="lead" id="auth-lead">Unlock your vault. Personal files are sealed in the browser before they leave this device.</p>
 
       <div class="auth-switch" id="auth-switch">
         <span class="auth-switch-pill" id="auth-pill"></span>
@@ -433,6 +456,16 @@
 
       <div class="auth-stage">
         <div class="auth-pane" id="pane-form">
+          <div id="name-row" class="name-row hidden">
+            <div>
+              <label for="first-name">First name</label>
+              <input id="first-name" type="text" maxlength="40" autocomplete="given-name" placeholder="Ali" />
+            </div>
+            <div>
+              <label for="last-name">Last name <span>optional</span></label>
+              <input id="last-name" type="text" maxlength="40" autocomplete="family-name" placeholder="Abbas" />
+            </div>
+          </div>
           <label for="email">Email</label>
           <input id="email" type="email" autocomplete="username" placeholder="you@example.com" />
           <label for="password" id="password-label">Password</label>
@@ -562,7 +595,7 @@
       <button type="button" class="ghost small settings-back" id="notifications-back">Back to files</button>
       <div class="card">
         <h2>Notifications</h2>
-        <p class="lead">Invites and replies land here so you can deal with them when you open Mini Cloud.</p>
+        <p class="lead">Invites and replies land here so you can deal with them when you open SafeKeeping.</p>
         <div class="actions" style="margin-bottom:14px">
           <button type="button" class="ghost small" id="mark-all-read">Mark all read</button>
         </div>
@@ -645,7 +678,7 @@
   <div id="convert-modal" class="overlay hidden">
     <div class="card modal">
       <h2 id="convert-title">Convert file</h2>
-      <p class="lead" style="color:var(--muted)">Runs on this machine. Pictures stay pictures. Word and PDF become the text inside them.</p>
+      <p class="lead" style="color:var(--muted)">Works on personal vault files too. Pictures stay pictures. Word and PDF become the text inside them.</p>
       <label for="convert-to">Convert to</label>
       <select id="convert-to"></select>
       <label for="convert-name">Save as</label>
@@ -1440,6 +1473,59 @@
       }
       $("convert-go").disabled = true;
       try {
+        const f = fileByKey(key);
+        if (isEncrypted(f)) {
+          if (!vaultDEK) {
+            $("convert-err").textContent = "Unlock the vault by signing in again, then convert.";
+            return;
+          }
+          const src = await fetch(fileAPI("objects", key), {
+            headers: { Authorization: "Bearer " + token() },
+          });
+          if (!src.ok) {
+            $("convert-err").textContent = "Could not open this file";
+            return;
+          }
+          let bytes = new Uint8Array(await src.arrayBuffer());
+          try { bytes = await decryptDownload(bytes.buffer, f.enc_wrap); }
+          catch {
+            $("convert-err").textContent = "Could not decrypt this file. Sign in again to unlock the vault.";
+            return;
+          }
+          const form = new FormData();
+          form.append("file", new Blob([bytes]), prettyName(key));
+          form.append("to", to);
+          form.append("name", prettyName(key));
+          const raw = await fetch("/v1/convert/raw", {
+            method: "POST",
+            headers: { Authorization: "Bearer " + token() },
+            body: form,
+          });
+          if (!raw.ok) {
+            const data = await raw.json().catch(() => ({}));
+            $("convert-err").textContent = data.error || "Could not convert";
+            return;
+          }
+          const out = new Blob([await raw.arrayBuffer()]);
+          const dest = saveAs || raw.headers.get("X-Converted-Name") || prettyName(key);
+          const headers = { Authorization: "Bearer " + token() };
+          let send = out;
+          if (vaultDEK) {
+            const enc = await encryptForUpload(out);
+            send = enc.body;
+            headers["X-Minicloud-Enc"] = "1";
+            headers["X-Minicloud-Wrap"] = enc.wrap;
+          }
+          const put = await fetch(fileAPI("objects", dest), { method: "PUT", headers, body: send });
+          if (!put.ok) {
+            const data = await put.json().catch(() => ({}));
+            $("convert-err").textContent = data.error || "Converted, but could not save the new file";
+            return;
+          }
+          closeConvert();
+          await refresh();
+          return;
+        }
         const res = await fetch("/v1/convert", {
           method: "POST",
           headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
@@ -1486,19 +1572,21 @@
       $("tab-signup").classList.toggle("on", signup);
 
       if (signin || signup) {
-        $("auth-title").textContent = signin ? "Welcome back" : "Create your vault";
+        $("auth-title").textContent = signin ? "Welcome back" : "Claim your vault";
         $("auth-lead").textContent = signin
-          ? "Sign in to open your vault. Personal files are encrypted in your browser before upload."
-          : "We'll email a 6-digit code so only a real inbox can register.";
+          ? "Unlock your vault. Personal files are sealed in the browser before they leave this device."
+          : "Tell us your name. We email a 6-digit code so only a real inbox can register.";
         $("password-label").textContent = signin ? "Password" : "Password (8+ characters)";
         $("password").autocomplete = signin ? "current-password" : "new-password";
         $("auth-submit").textContent = signin ? "Sign in" : "Send verification code";
         $("signin-links").classList.toggle("hidden", !signin);
         $("remember-row").classList.toggle("hidden", !signin);
+        $("name-row").classList.toggle("hidden", !signup);
         showPane("pane-form", back || signin);
         return;
       }
 
+      $("name-row").classList.add("hidden");
       if (mode === "forgot") {
         $("auth-title").textContent = "Forgot password";
         $("auth-lead").textContent = "We'll email a code. Resetting the password starts a new vault key, so files you already uploaded cannot be decrypted.";
@@ -1537,7 +1625,7 @@
     }
 
     function clearAuthForm() {
-      ["email", "password", "forgot-email", "code", "new-password"].forEach((id) => {
+      ["email", "password", "forgot-email", "code", "new-password", "first-name", "last-name"].forEach((id) => {
         $(id).value = "";
       });
       pendingEmail = "";
@@ -1547,7 +1635,7 @@
     function codeHint(data) {
       let extra = "";
       if (data.delivery === "log") {
-        extra = " Open Railway → mini-cloud → Deployments → Logs and search for “mail code”. Locally it is in the server window.";
+        extra = " Open Railway → Deployments → Logs and search for “mail code”. Locally it is in the server window.";
       }
       $("auth-ok").textContent = (data.message || "Code sent.") + extra;
     }
@@ -1608,7 +1696,18 @@
           return;
         }
         pendingPassword = password;
-        const data = await postAuth("/v1/auth/register/start", { email, password });
+        const first = $("first-name").value.trim();
+        const last = $("last-name").value.trim();
+        if (!first) {
+          $("auth-err").textContent = "Tell us your first name";
+          return;
+        }
+        const data = await postAuth("/v1/auth/register/start", {
+          email,
+          password,
+          first_name: first,
+          last_name: last,
+        });
         if (data) {
           openCodePane(email, "register", data, false);
           return;
@@ -1657,6 +1756,8 @@
       if (data) await saveSession(data, pendingPassword);
     };
     $("email").addEventListener("keydown", (e) => { if (e.key === "Enter") submitAuth(); });
+    $("first-name").addEventListener("keydown", (e) => { if (e.key === "Enter") submitAuth(); });
+    $("last-name").addEventListener("keydown", (e) => { if (e.key === "Enter") submitAuth(); });
     $("password").addEventListener("keydown", (e) => { if (e.key === "Enter") submitAuth(); });
     $("code").addEventListener("keydown", (e) => { if (e.key === "Enter") $("code-submit").click(); });
     $("new-password").addEventListener("keydown", (e) => { if (e.key === "Enter") $("code-submit").click(); });
@@ -1835,7 +1936,7 @@
       }
       $("invite-email").value = "";
       $("share-banner").classList.remove("hidden");
-      $("share-banner").textContent = email + " will see the invite the next time they open Mini Cloud.";
+      $("share-banner").textContent = email + " will see the invite the next time they open SafeKeeping.";
       loadCollabMembers();
     };
 
@@ -2206,10 +2307,8 @@
       actions.className = "row-actions";
       const actionsList = [
         iconBtn("share", "Share", "share", () => shareFile(f.key)),
+        iconBtn("convert", "Convert", "convert", () => openConvert(f.key)),
       ];
-      if (!isEncrypted(f)) {
-        actionsList.push(iconBtn("convert", "Convert", "convert", () => openConvert(f.key)));
-      }
       actionsList.push(
         iconBtn("download", "Download", "download", () => download(f.key)),
         iconBtn("trash", "Delete", "danger", () => askDeleteFile(f)),

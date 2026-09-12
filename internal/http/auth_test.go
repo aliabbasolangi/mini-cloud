@@ -49,8 +49,10 @@ func TestRegisterNeedsEmailCode(t *testing.T) {
 	h, _, mailer := testAuth(t)
 
 	start := postJSON(h.registerStart, map[string]string{
-		"email":    "ali@example.com",
-		"password": "password1",
+		"email":      "ali@example.com",
+		"password":   "password1",
+		"first_name": "Ali",
+		"last_name":  "Abbas",
 	})
 	if start.Code != http.StatusOK {
 		t.Fatalf("start %d %s", start.Code, start.Body.String())
@@ -82,6 +84,24 @@ func TestRegisterNeedsEmailCode(t *testing.T) {
 	if login.Code != http.StatusOK {
 		t.Fatalf("login %d %s", login.Code, login.Body.String())
 	}
+	var created map[string]any
+	if err := json.Unmarshal(ok.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+	if created["display_name"] != "Ali Abbas" {
+		t.Fatalf("display name %v", created["display_name"])
+	}
+}
+
+func TestRegisterNeedsFirstName(t *testing.T) {
+	h, _, _ := testAuth(t)
+	start := postJSON(h.registerStart, map[string]string{
+		"email":    "ali@example.com",
+		"password": "password1",
+	})
+	if start.Code != http.StatusBadRequest {
+		t.Fatalf("missing name %d %s", start.Code, start.Body.String())
+	}
 }
 
 type failMail struct{}
@@ -94,8 +114,9 @@ func TestRegisterStartClearsCodeWhenMailFails(t *testing.T) {
 	h.mail = failMail{}
 
 	first := postJSON(h.registerStart, map[string]string{
-		"email":    "ali@example.com",
-		"password": "password1",
+		"email":      "ali@example.com",
+		"password":   "password1",
+		"first_name": "Ali",
 	})
 	if first.Code != http.StatusBadGateway {
 		t.Fatalf("mail fail %d %s", first.Code, first.Body.String())
@@ -103,8 +124,9 @@ func TestRegisterStartClearsCodeWhenMailFails(t *testing.T) {
 
 	h.mail = &memMail{}
 	retry := postJSON(h.registerStart, map[string]string{
-		"email":    "ali@example.com",
-		"password": "password1",
+		"email":      "ali@example.com",
+		"password":   "password1",
+		"first_name": "Ali",
 	})
 	if retry.Code != http.StatusOK {
 		t.Fatalf("retry after mail fail should work, got %d %s", retry.Code, retry.Body.String())

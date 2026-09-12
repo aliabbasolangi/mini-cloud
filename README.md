@@ -1,4 +1,4 @@
-# Mini Cloud
+# SafeKeeping
 
 A small personal file vault: a Go API plus a web UI. You log in, upload files, put them in folders, and share a link that works for 24 hours.
 
@@ -33,7 +33,7 @@ SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your-2fa-mailbox@gmail.com
 SMTP_PASS=your-app-password
-SMTP_FROM=Mini Cloud <your-2fa-mailbox@gmail.com>
+SMTP_FROM=SafeKeeping <your-2fa-mailbox@gmail.com>
 MAIL_LOG=0
 ```
 

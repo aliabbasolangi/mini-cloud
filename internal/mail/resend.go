@@ -27,13 +27,13 @@ func (r resendMailer) endpoint() string {
 }
 
 func (r resendMailer) SendCode(to, purpose, code string) error {
-	subject := "Your Mini Cloud verification code"
+	subject := "Your SafeKeeping verification code"
 	why := "confirm your email and finish creating your account"
 	if purpose == catalog.PurposeReset {
-		subject = "Reset your Mini Cloud password"
+		subject = "Reset your SafeKeeping password"
 		why = "reset your password"
 	}
-	body := fmt.Sprintf("Your Mini Cloud code is %s\n\nUse it to %s. It expires in 10 minutes.\nIf you did not ask for this, ignore the email.\n", code, why)
+	body := fmt.Sprintf("Your SafeKeeping code is %s\n\nUse it to %s. It expires in 10 minutes.\nIf you did not ask for this, ignore the email.\n", code, why)
 	payload, err := json.Marshal(map[string]any{
 		"from":    r.from,
 		"to":      []string{to},

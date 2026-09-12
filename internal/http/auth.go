@@ -1,12 +1,14 @@
 package http
 
 import (
+	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
 	"regexp"
 	"strings"
 	"time"
+	"unicode"
 
 	"minicloud/internal/auth"
 	"minicloud/internal/avatar"
@@ -23,10 +25,17 @@ type authHandlers struct {
 }
 
 type authRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Code     string `json:"code"`
-	Purpose  string `json:"purpose"`
+	Email     string `json:"email"`
+	Password  string `json:"password"`
+	Code      string `json:"code"`
+	Purpose   string `json:"purpose"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+}
+
+type registerExtra struct {
+	Hash        string `json:"hash"`
+	DisplayName string `json:"display_name"`
 }
 
 var emailRE = regexp.MustCompile(`^[^\s@]+@[^\s@]+\.[^\s@]+$`)
@@ -50,6 +59,11 @@ func (h authHandlers) registerStart(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "need a real email and a password of at least 8 characters")
 		return
 	}
+	displayName, ok := displayNameFromParts(req.FirstName, req.LastName)
+	if !ok {
+		writeError(w, http.StatusBadRequest, "tell us your first name")
+		return
+	}
 
 	_, err := h.catalog.UserByEmail(r.Context(), email)
 	if err == nil {
@@ -66,7 +80,12 @@ func (h authHandlers) registerStart(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not save password")
 		return
 	}
-	if err := h.issueCode(w, r, email, catalog.PurposeRegister, hash); err != nil {
+	extra, err := json.Marshal(registerExtra{Hash: hash, DisplayName: displayName})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not start registration")
+		return
+	}
+	if err := h.issueCode(w, r, email, catalog.PurposeRegister, string(extra)); err != nil {
 		return
 	}
 	h.writeCodeSent(w, "We sent a 6-digit code to confirm this email.")
@@ -84,12 +103,13 @@ func (h authHandlers) registerVerify(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if extra == "" {
+	hash, displayName := unpackRegisterExtra(extra)
+	if hash == "" {
 		writeError(w, http.StatusBadRequest, "start registration again")
 		return
 	}
 
-	user, err := h.catalog.CreateUser(r.Context(), email, extra)
+	user, err := h.catalog.CreateUser(r.Context(), email, hash)
 	if errors.Is(err, catalog.ErrEmailTaken) {
 		writeError(w, http.StatusConflict, "that email is already registered")
 		return
@@ -97,6 +117,11 @@ func (h authHandlers) registerVerify(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not create account")
 		return
+	}
+	if displayName != "" {
+		if updated, err := h.catalog.UpdateProfile(r.Context(), user.ID, displayName, user.Theme, user.Accent); err == nil {
+			user = updated
+		}
 	}
 	_ = h.catalog.EnsureInviteNotifications(r.Context(), user)
 	h.respondToken(w, user, http.StatusCreated)
@@ -304,4 +329,54 @@ func normalizeCreds(email, password string) (string, string, bool) {
 		return "", "", false
 	}
 	return email, password, true
+}
+
+func unpackRegisterExtra(extra string) (hash, displayName string) {
+	extra = strings.TrimSpace(extra)
+	if extra == "" {
+		return "", ""
+	}
+	if strings.HasPrefix(extra, "{") {
+		var payload registerExtra
+		if json.Unmarshal([]byte(extra), &payload) == nil && payload.Hash != "" {
+			return payload.Hash, strings.TrimSpace(payload.DisplayName)
+		}
+	}
+	return extra, ""
+}
+
+func displayNameFromParts(first, last string) (string, bool) {
+	first, ok := normalizePersonName(first, true)
+	if !ok {
+		return "", false
+	}
+	last, ok = normalizePersonName(last, false)
+	if !ok {
+		return "", false
+	}
+	if last == "" {
+		return first, true
+	}
+	return first + " " + last, true
+}
+
+func normalizePersonName(s string, required bool) (string, bool) {
+	s = strings.Join(strings.Fields(strings.TrimSpace(s)), " ")
+	if s == "" {
+		return "", !required
+	}
+	runes := []rune(s)
+	if len(runes) > 40 {
+		return "", false
+	}
+	for i, r := range runes {
+		if unicode.IsLetter(r) || unicode.IsMark(r) {
+			continue
+		}
+		if i > 0 && (r == ' ' || r == '-' || r == '\'' || r == '’' || r == '.') {
+			continue
+		}
+		return "", false
+	}
+	return s, true
 }

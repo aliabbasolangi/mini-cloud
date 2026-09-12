@@ -69,7 +69,7 @@ func Load() (Config, error) {
 		SMTPPass:        os.Getenv("SMTP_PASS"),
 		SMTPFrom:        env("SMTP_FROM", os.Getenv("SMTP_USER")),
 		ResendAPIKey:    strings.TrimSpace(os.Getenv("RESEND_API_KEY")),
-		ResendFrom:      env("RESEND_FROM", "Mini Cloud <onboarding@resend.dev>"),
+		ResendFrom:      env("RESEND_FROM", "SafeKeeping <onboarding@resend.dev>"),
 		MailLog:         envBool("MAIL_LOG", smtpHost == "" && strings.TrimSpace(os.Getenv("RESEND_API_KEY")) == ""),
 	}
 	if strings.TrimSpace(cfg.SMTPPass) == "" {

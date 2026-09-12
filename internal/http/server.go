@@ -62,6 +62,7 @@ func New(store blob.Store, cat *catalog.DB, thumbs *thumb.Store, avatars *avatar
 		r.Post("/v1/notifications/read-all", authH.readAllNotifications)
 		r.Post("/v1/notifications/{id}/read", authH.readNotification)
 		r.Post("/v1/convert", objH.convert)
+		r.Post("/v1/convert/raw", objH.convertRaw)
 
 		r.Post("/v1/collab/folders", objH.createCollabFolder)
 		r.Get("/v1/collab/folders", objH.listCollabFolders)
