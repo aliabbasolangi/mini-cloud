@@ -4,6 +4,7 @@ import (
 	"context"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestUserAndObjectRoundTrip(t *testing.T) {
@@ -74,10 +75,116 @@ func TestUserAndObjectRoundTrip(t *testing.T) {
 		t.Fatalf("revoked share: %v", err)
 	}
 
-	if err := db.DeleteObject(ctx, user.ID, "photos/holiday.jpg"); err != nil {
+	if _, err := db.UpsertObject(ctx, user.ID, "photos/extra.png", "def", 20); err != nil {
+		t.Fatal(err)
+	}
+	n, err := db.DeletePrefix(ctx, user.ID, "photos/")
+	if err != nil || n != 2 {
+		t.Fatalf("delete folder: %v n=%d", err, n)
+	}
+
+	if _, err := db.UpsertObject(ctx, user.ID, "keep.txt", "zzz", 3); err != nil {
+		t.Fatal(err)
+	}
+	used, err := db.UsageBytes(ctx, user.ID)
+	if err != nil || used != 3 {
+		t.Fatalf("usage %v %d", err, used)
+	}
+
+	if err := db.DeleteObject(ctx, user.ID, "keep.txt"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.ObjectByKey(ctx, user.ID, "photos/holiday.jpg"); err != ErrObjectNotFound {
 		t.Fatalf("got %v want not found", err)
+	}
+}
+
+func TestUpdateProfile(t *testing.T) {
+	db, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	ctx := context.Background()
+	user, err := db.CreateUser(ctx, "ali@example.com", "hash")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := db.UpdateProfile(ctx, user.ID, "Ali", "light", "#4a90d9")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.DisplayName != "Ali" || got.Theme != "light" || got.Accent != "#4a90d9" {
+		t.Fatalf("profile %+v", got)
+	}
+	if _, err := db.UpdateProfile(ctx, user.ID, "Ali", "neon", "#fff"); err != ErrBadProfile {
+		t.Fatalf("bad profile: %v", err)
+	}
+}
+
+func TestEmailCodeConsumeAndCooldown(t *testing.T) {
+	db, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	ctx := context.Background()
+	now := time.Date(2026, 9, 12, 12, 0, 0, 0, time.UTC)
+	if err := db.PutEmailCode(ctx, "Ali@example.com", PurposeRegister, "hash-1", "pw", now); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.PutEmailCode(ctx, "ali@example.com", PurposeRegister, "hash-2", "pw", now.Add(10*time.Second)); err != ErrCodeCooldown {
+		t.Fatalf("cooldown: %v", err)
+	}
+
+	if _, err := db.ConsumeEmailCode(ctx, "ali@example.com", PurposeRegister, "nope", now.Add(time.Minute)); err != ErrCodeWrong {
+		t.Fatalf("wrong: %v", err)
+	}
+	extra, err := db.ConsumeEmailCode(ctx, "ali@example.com", PurposeRegister, "hash-1", now.Add(time.Minute))
+	if err != nil || extra != "pw" {
+		t.Fatalf("consume %q %v", extra, err)
+	}
+	if _, err := db.ConsumeEmailCode(ctx, "ali@example.com", PurposeRegister, "hash-1", now.Add(2*time.Minute)); err != ErrCodeNotFound {
+		t.Fatalf("second consume: %v", err)
+	}
+}
+
+func TestVaultAndEncryptedObject(t *testing.T) {
+	db, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	ctx := context.Background()
+
+	user, err := db.CreateUser(ctx, "vault@example.com", "hash")
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved, err := db.SetVaultIfEmpty(ctx, user.ID, "c2FsdA", "d3JhcA")
+	if err != nil || saved.VaultSalt != "c2FsdA" || saved.VaultWrap != "d3JhcA" {
+		t.Fatalf("set vault: %+v %v", saved, err)
+	}
+	again, err := db.SetVaultIfEmpty(ctx, user.ID, "other", "nope")
+	if err != nil || again.VaultWrap != "d3JhcA" {
+		t.Fatalf("vault should stay write-once: %+v %v", again, err)
+	}
+	if err := db.ClearVault(ctx, user.Email); err != nil {
+		t.Fatal(err)
+	}
+	cleared, err := db.UserByID(ctx, user.ID)
+	if err != nil || cleared.VaultWrap != "" {
+		t.Fatalf("clear vault: %+v %v", cleared, err)
+	}
+
+	obj, err := db.UpsertObjectEnc(ctx, user.ID, "secret.txt", "sha", 12, 1, "wrap-bytes")
+	if err != nil || obj.EncVer != 1 || obj.EncWrap != "wrap-bytes" {
+		t.Fatalf("enc object: %+v %v", obj, err)
+	}
+	got, err := db.ObjectByKey(ctx, user.ID, "secret.txt")
+	if err != nil || got.EncVer != 1 {
+		t.Fatalf("reload enc: %+v %v", got, err)
 	}
 }

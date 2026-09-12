@@ -17,6 +17,28 @@ Open http://127.0.0.1:8080 and create an account.
 
 Uploads, the database, and the login secret stay in `data/` on your machine. That folder is gitignored.
 
+## Host it
+
+This is one Go process plus a disk. Use Railway, Fly, Render, or a VPS — not Vercel.
+
+Point a persistent volume at `/data` and set:
+
+```
+BLOB_DIR=/data/blobs
+THUMB_DIR=/data/thumbs
+AVATAR_DIR=/data/avatars
+DATABASE_PATH=/data/minicloud.db
+JWT_SECRET_FILE=/data/.jwt-secret
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-2fa-mailbox@gmail.com
+SMTP_PASS=your-app-password
+SMTP_FROM=Mini Cloud <your-2fa-mailbox@gmail.com>
+MAIL_LOG=0
+```
+
+The app also reads `PORT` from the host. Do not commit `.env`.
+
 ## Settings
 
 | Variable | Default | Meaning |

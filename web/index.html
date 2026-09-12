@@ -16,6 +16,18 @@
       --accent-ink: #1a140c;
       --danger: #e07a6a;
       --ok: #8fbf9f;
+      --hover: #2a241c;
+    }
+    :root.theme-light {
+      --bg: #f3efe6;
+      --bg-2: #fffdf8;
+      --card: #ffffff;
+      --ink: #1c1814;
+      --muted: #6f6a62;
+      --line: #e0d8cc;
+      --danger: #b54b3c;
+      --ok: #3d7a55;
+      --hover: #efe4d4;
     }
     * { box-sizing: border-box; }
     html, body { height: 100%; }
@@ -27,13 +39,13 @@
         var(--bg);
       font: 15px/1.5 "Segoe UI", "Helvetica Neue", sans-serif;
     }
-    .shell { max-width: 820px; margin: 0 auto; padding: 28px 20px 64px; }
+    .shell { max-width: 980px; margin: 0 auto; padding: 28px 20px 64px; }
     header.app {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 16px;
-      margin-bottom: 28px;
+      margin-bottom: 22px;
     }
     .brand { display: flex; align-items: center; gap: 12px; }
     .mark {
@@ -44,182 +56,337 @@
       display: grid;
       place-items: center;
       font-weight: 700;
-      letter-spacing: -0.04em;
     }
     .brand h1 { margin: 0; font-size: 20px; letter-spacing: -0.03em; }
     .brand span { color: var(--muted); font-size: 13px; }
-    .who {
-      color: var(--muted);
-      font-size: 13px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
+    .account { position: relative; }
+    .pfp-wrap { position: relative; display: inline-block; }
+    .pfp {
+      width: 38px; height: 38px; padding: 0; border-radius: 50%;
+      display: grid; place-items: center;
+      font-size: 13px; font-weight: 700; letter-spacing: 0.02em;
+      overflow: hidden; position: relative;
     }
+    .pfp-badge {
+      position: absolute; top: -5px; right: -5px; z-index: 2;
+      min-width: 18px; height: 18px; padding: 0 5px;
+      border-radius: 99px; background: var(--danger); color: #fff;
+      font-size: 11px; font-weight: 700;
+      display: grid; place-items: center;
+      pointer-events: none;
+    }
+    .menu-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .menu-badge {
+      min-width: 18px; height: 18px; padding: 0 5px;
+      border-radius: 99px; background: var(--danger); color: #fff;
+      font-size: 11px; font-weight: 700;
+      display: grid; place-items: center;
+    }
+    .notif-item {
+      padding: 14px 0;
+      border-top: 1px solid var(--line);
+    }
+    .notif-item:first-child { border-top: 0; padding-top: 0; }
+    .notif-item.unread { }
+    .notif-item strong { display: block; }
+    .danger-zone {
+      margin-top: 28px; padding: 18px 16px 16px;
+      border: 1px solid #5a3330; border-radius: 12px;
+      background: #2a1c1c;
+    }
+    :root.theme-light .danger-zone { background: #f8ecea; border-color: #e0b4ae; }
+    .danger-zone h3 { margin: 0 0 8px; font-size: 16px; color: var(--danger); }
+    .danger-zone .lead { color: var(--muted); margin: 0 0 14px; }
+    button.danger-fill {
+      background: var(--danger); color: #fff; border: 0; font-weight: 700;
+    }
+    button.danger-fill:hover { filter: brightness(1.06); }
+    button.danger-fill:disabled { opacity: 0.4; cursor: not-allowed; filter: none; }
+    .delete-modal h2 { color: var(--danger); }
+    .delete-modal ul { margin: 0 0 16px; padding-left: 18px; color: var(--ink); font-size: 14px; }
+    .delete-modal li { margin: 6px 0; }
+    .pfp img, .pfp-xl img {
+      position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+    }
+    .pfp-xl {
+      width: 96px; height: 96px; border-radius: 50%;
+      display: grid; place-items: center;
+      background: var(--accent); color: var(--accent-ink);
+      font-size: 28px; font-weight: 700;
+      overflow: hidden; position: relative; margin: 0 0 14px;
+    }
+    .account-menu {
+      position: absolute; right: 0; top: calc(100% + 8px);
+      width: 240px; padding: 8px;
+      background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.28); z-index: 30;
+    }
+    .account-meta { padding: 8px 10px 10px; border-bottom: 1px solid var(--line); margin-bottom: 6px; }
+    .account-meta strong { display: block; color: var(--ink); font-size: 14px; }
+    .account-meta span { color: var(--muted); font-size: 12px; word-break: break-all; }
+    button.menu-item {
+      width: 100%; text-align: left; background: transparent; color: var(--ink);
+      font-weight: 500; padding: 9px 10px; border-radius: 8px;
+    }
+    button.menu-item:hover { background: var(--hover); color: var(--accent); filter: none; }
     button {
-      border: 0;
-      border-radius: 8px;
-      padding: 10px 14px;
-      font: inherit;
-      cursor: pointer;
-      background: var(--accent);
-      color: var(--accent-ink);
-      font-weight: 600;
+      border: 0; border-radius: 8px; padding: 10px 14px;
+      font: inherit; cursor: pointer;
+      background: var(--accent); color: var(--accent-ink); font-weight: 600;
     }
     button:hover { filter: brightness(1.06); }
-    button.ghost {
-      background: transparent;
-      color: var(--ink);
-      border: 1px solid var(--line);
-      font-weight: 500;
-    }
-    button.small {
-      padding: 6px 10px;
-      font-size: 13px;
-      font-weight: 500;
-    }
-    button.danger {
-      background: transparent;
-      color: var(--danger);
-      border: 1px solid #5a3330;
-      padding: 6px 10px;
-      font-size: 13px;
-      font-weight: 500;
-    }
+    button.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); font-weight: 500; }
+    button.ghost:hover { border-color: var(--accent); color: var(--accent); background: var(--hover); filter: none; }
+    button.small { padding: 6px 10px; font-size: 13px; font-weight: 500; }
+    button.danger { background: transparent; color: var(--danger); border: 1px solid #5a3330; padding: 6px 10px; font-size: 13px; font-weight: 500; }
+    button.danger:hover { background: #2a1c1c; border-color: var(--danger); filter: none; }
+    button.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
     button:disabled { opacity: 0.55; cursor: wait; }
-    .card {
+    button.icon-btn {
+      width: 34px; height: 34px; padding: 0;
+      display: grid; place-items: center;
+      background: transparent; color: var(--muted);
+      border: 1px solid var(--line); border-radius: 8px;
+    }
+    button.icon-btn svg {
+      width: 16px; height: 16px;
+      fill: none; stroke: currentColor; stroke-width: 2;
+      stroke-linecap: round; stroke-linejoin: round;
+    }
+    button.icon-btn.share:hover, button.icon-btn.convert:hover { color: var(--accent); border-color: var(--accent); background: var(--hover); filter: none; }
+    button.icon-btn.download:hover { color: var(--ok); border-color: var(--ok); background: #1c2a22; filter: none; }
+    button.icon-btn.danger:hover { color: var(--danger); border-color: var(--danger); background: #2a1c1c; filter: none; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 28px; }
+    .auth-wrap {
+      max-width: 440px; margin: 56px auto 0;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.28);
+      overflow: hidden;
+    }
+    .auth-wrap h2 { margin: 0 0 6px; font-size: 24px; letter-spacing: -0.03em; }
+    .auth-wrap p.lead { color: var(--muted); margin: 0 0 20px; }
+    .auth-switch {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      background: var(--bg-2);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 4px;
+      margin: 0 0 22px;
+    }
+    .auth-switch-pill {
+      position: absolute;
+      top: 4px; bottom: 4px; left: 4px;
+      width: calc(50% - 4px);
       background: var(--card);
       border: 1px solid var(--line);
-      border-radius: 16px;
-      padding: 28px;
+      border-radius: 9px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+      transition: transform 0.32s cubic-bezier(.2,.8,.2,1);
+      pointer-events: none;
     }
-    .auth-wrap { max-width: 420px; margin: 48px auto 0; }
-    .auth-wrap h2 { margin: 0 0 6px; font-size: 22px; letter-spacing: -0.03em; }
-    .auth-wrap p.lead { color: var(--muted); margin: 0 0 22px; }
+    .auth-switch.signup .auth-switch-pill { transform: translateX(100%); }
+    .auth-switch-btn {
+      position: relative; z-index: 1;
+      background: transparent; color: var(--muted);
+      font-weight: 600; padding: 10px 8px;
+    }
+    .auth-switch-btn:hover { filter: none; color: var(--ink); }
+    .auth-switch-btn.on { color: var(--ink); }
+    .auth-stage { min-height: 220px; }
+    .auth-pane { animation: authIn 0.32s cubic-bezier(.2,.8,.2,1); }
+    .auth-pane.back { animation: authBack 0.32s cubic-bezier(.2,.8,.2,1); }
+    @keyframes authIn {
+      from { opacity: 0; transform: translateX(18px); }
+      to { opacity: 1; transform: none; }
+    }
+    @keyframes authBack {
+      from { opacity: 0; transform: translateX(-18px); }
+      to { opacity: 1; transform: none; }
+    }
+    .auth-go { width: 100%; margin-top: 2px; }
+    .remember {
+      display: flex; align-items: center; gap: 8px;
+      margin: 0 0 14px; color: var(--ink); font-size: 14px;
+    }
+    .remember input { margin: 0; }
+    .vault-note { margin: 28px 0 0; padding-top: 22px; border-top: 1px solid var(--line, #3a332b); }
+    .vault-note h3 { margin: 0 0 6px; font-size: 16px; }
+    .auth-links { margin: 14px 0 0; text-align: center; }
+    button.link {
+      background: transparent; color: var(--accent); padding: 0;
+      font-weight: 600; font-size: 13px; border: 0;
+    }
+    button.link:hover { filter: none; text-decoration: underline; }
+    #code {
+      letter-spacing: 0.42em;
+      font-size: 22px;
+      text-align: center;
+      font-weight: 700;
+      padding-left: 18px;
+    }
     label { display: block; font-size: 12px; color: var(--muted); margin: 0 0 6px; }
-    input[type="email"], input[type="password"], input[type="text"] {
-      width: 100%;
-      padding: 11px 12px;
-      margin-bottom: 14px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--bg-2);
-      color: var(--ink);
-      font: inherit;
+    input[type="email"], input[type="password"], input[type="text"], select {
+      width: 100%; padding: 11px 12px; margin-bottom: 14px;
+      border: 1px solid var(--line); border-radius: 8px;
+      background: var(--bg-2); color: var(--ink); font: inherit;
     }
+    select { cursor: pointer; }
     input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
     .actions { display: flex; gap: 8px; margin-top: 4px; }
     .err { color: var(--danger); min-height: 1.2em; margin: 12px 0 0; font-size: 13px; }
-    .drop {
-      border: 1px dashed #4a4450;
-      border-radius: 14px;
-      padding: 36px 20px;
-      text-align: center;
-      background: var(--bg-2);
+    .usage {
+      margin: 0 0 4px;
       color: var(--muted);
-      cursor: pointer;
-      transition: border-color 0.15s, background 0.15s;
+      font-size: 13px;
     }
-    .drop:hover, .drop.over {
-      border-color: var(--accent);
-      background: #2a241c;
-      color: var(--ink);
+    .page-drop {
+      position: fixed; inset: 16px; z-index: 18;
+      display: grid; place-items: center;
+      border: 2px dashed var(--accent); border-radius: 20px;
+      background: rgba(18, 20, 26, 0.82);
+      color: var(--ink); text-align: center; pointer-events: none;
     }
-    .drop strong { display: block; color: var(--ink); font-size: 16px; margin-bottom: 4px; }
+    .page-drop strong { display: block; font-size: 22px; margin-bottom: 6px; }
+    .page-drop span { color: var(--muted); font-size: 14px; }
+    .usage-bar {
+      height: 8px; border-radius: 99px; background: #2d3340; overflow: hidden; margin-top: 6px;
+    }
+    .usage-bar span { display: block; height: 100%; background: var(--accent); width: 0; }
     .toolbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin: 18px 0 10px;
-      flex-wrap: wrap;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; margin: 18px 0 10px; flex-wrap: wrap;
     }
     .crumbs { color: var(--muted); font-size: 13px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-    .crumbs button.link {
-      all: unset;
-      cursor: pointer;
-      color: var(--accent);
-      font-weight: 600;
+    .crumbs button.link { all: unset; cursor: pointer; color: var(--accent); font-weight: 600; }
+    .stats {
+      display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
     }
-    .stats { display: flex; gap: 18px; color: var(--muted); font-size: 13px; }
-    .files { list-style: none; padding: 0; margin: 0; }
-    .files li {
-      display: grid;
-      grid-template-columns: 48px 1fr auto;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 8px;
+    .stats .count { color: var(--muted); font-size: 13px; }
+    .tool-group {
+      display: flex; gap: 4px; padding: 3px;
+      background: var(--bg-2); border: 1px solid var(--line); border-radius: 10px;
+    }
+    .tool-group .icon-btn { border: 0; background: transparent; }
+    .tool-group .icon-btn.active {
+      background: var(--accent); color: var(--accent-ink);
+    }
+    .settings-page { max-width: 520px; }
+    .settings-page h2 { margin: 0 0 6px; font-size: 22px; }
+    .settings-page .lead { color: var(--muted); margin: 0 0 22px; }
+    .settings-back { margin-bottom: 16px; }
+    .files { list-style: none; padding: 8px 12px; margin: 0; }
+    .files.list li {
+      display: grid; grid-template-columns: 48px 1fr auto;
+      align-items: center; gap: 12px; padding: 12px 8px;
       border-top: 1px solid var(--line);
     }
-    .files li:first-child { border-top: 0; }
-    .files li.dragging { opacity: 0.4; }
-    .files li.drop-target,
-    .crumbs button.drop-target {
-      outline: 1px solid var(--accent);
-      background: #2a241c;
+    .files.list li:first-child { border-top: 0; }
+    .files.grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(188px, 210px));
+      gap: 12px;
+      padding: 16px;
     }
+    .files.grid li {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 8px; padding: 14px 10px 12px;
+      border: 1px solid var(--line); border-radius: 12px; text-align: center;
+      min-width: 0;
+    }
+    .files.grid .icon { width: 96px; height: 96px; }
+    .files.grid .row-actions { justify-content: center; gap: 6px; }
+    .files.grid .name {
+      width: 100%;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      word-break: break-word;
+    }
+    .files.grid .mid { width: 100%; min-width: 0; }
+    .files li.dragging { opacity: 0.4; }
+    .files li.drop-target, .crumbs button.drop-target { outline: 1px solid var(--accent); background: #2a241c; }
     .crumbs button.drop-target { border-radius: 6px; padding: 2px 8px; }
     .files li[draggable="true"] { cursor: grab; }
     .row-actions { display: flex; gap: 8px; }
     .icon {
-      width: 48px; height: 48px;
-      border-radius: 10px;
-      display: grid;
-      place-items: center;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.02em;
-      background: #2d3340;
-      color: var(--accent);
-      overflow: hidden;
-      position: relative;
+      width: 48px; height: 48px; border-radius: 10px;
+      display: grid; place-items: center;
+      font-size: 11px; font-weight: 700;
+      background: #2d3340; color: var(--accent);
+      overflow: hidden; position: relative;
     }
     .icon.img { background: #2a3328; color: var(--ok); }
     .icon.doc { background: #332828; color: var(--danger); }
     .icon.folder { background: #2a261c; color: var(--accent); }
-    .icon img {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
+    .icon.shared { background: #243044; color: #8eb4e8; }
+    .icon.shared svg {
+      width: 22px; height: 22px;
+      fill: none; stroke: currentColor; stroke-width: 2;
+      stroke-linecap: round; stroke-linejoin: round;
     }
+    .icon img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
     .name { font-weight: 600; color: var(--ink); }
-    .name button.link {
-      all: unset;
-      cursor: pointer;
-      color: var(--ink);
-      font-weight: 600;
-    }
+    .name button.link { all: unset; cursor: pointer; color: var(--ink); font-weight: 600; }
     .name button.link:hover { color: var(--accent); }
     .meta { color: var(--muted); font-size: 12px; }
-    .empty {
-      text-align: center;
-      color: var(--muted);
-      padding: 28px 8px 8px;
-    }
+    .empty { text-align: center; color: var(--muted); padding: 28px 8px; }
     .banner {
-      margin-top: 12px;
-      padding: 12px 14px;
-      border-radius: 10px;
-      background: #2a241c;
-      border: 1px solid #4a3d2c;
-      font-size: 13px;
-      word-break: break-all;
+      margin-top: 12px; padding: 12px 14px; border-radius: 10px;
+      background: #2a241c; border: 1px solid #4a3d2c; font-size: 13px; word-break: break-all;
     }
     .banner a { color: var(--accent); }
-    .folder-form {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      margin: 0 0 12px;
+    .collab-bar {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+      margin: 12px 0 0; padding: 12px 14px; border-radius: 10px;
+      background: var(--bg-2); border: 1px solid var(--line);
     }
-    .folder-form input {
-      flex: 1;
-      margin: 0;
-      max-width: 280px;
+    .collab-bar strong { display: block; }
+    .collab-bar span { color: var(--muted); font-size: 12px; }
+    .invite-item {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 12px 0; border-top: 1px solid var(--line);
     }
+    .invite-item:first-child { border-top: 0; padding-top: 0; }
+    .folder-form { display: flex; gap: 8px; align-items: center; margin: 0 0 12px; }
+    .folder-form input { flex: 1; margin: 0; max-width: 280px; }
+    .overlay {
+      position: fixed; inset: 0; background: rgba(10, 10, 14, 0.72);
+      display: grid; place-items: center; padding: 20px; z-index: 20;
+    }
+    .modal { width: min(460px, 100%); }
+    .modal.wide { width: min(860px, 100%); }
+    .modal h2 { margin: 0 0 8px; font-size: 18px; }
+    #preview-body { max-height: 70vh; overflow: auto; margin: 12px 0; color: var(--muted); }
+    #preview-body img { max-width: 100%; max-height: 65vh; display: block; margin: 0 auto; border-radius: 8px; }
+    #preview-body iframe { width: 100%; height: 65vh; border: 0; background: #fff; border-radius: 8px; }
+    #preview-body pre { white-space: pre-wrap; word-break: break-word; font-size: 13px; color: var(--ink); }
+    .icon { cursor: pointer; }
+    .icon:hover { outline: 1px solid var(--accent); }
+    .modes { display: flex; gap: 16px; margin: 8px 0 14px; color: var(--ink); font-size: 14px; }
+    .modes label { margin: 0; color: var(--ink); font-size: 14px; display: flex; gap: 6px; align-items: center; }
+    .estimate {
+      background: var(--bg-2); border-radius: 10px; padding: 12px 14px;
+      font-size: 13px; color: var(--muted); margin-bottom: 14px;
+    }
+    .estimate strong { color: var(--ink); }
     .hidden { display: none; }
     #file { display: none; }
+    .swatches { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 14px; }
+    .swatch {
+      width: 28px; height: 28px; border-radius: 50%;
+      border: 2px solid transparent; cursor: pointer; padding: 0;
+      background: var(--c);
+    }
+    .swatch.on { border-color: var(--ink); }
+    input[type="color"] {
+      width: 40px; height: 32px; padding: 0; border: 0; background: transparent;
+      cursor: pointer; margin: 0;
+    }
+    .theme-row { display: flex; gap: 8px; margin-bottom: 14px; }
+    .ok { color: var(--ok); font-size: 13px; min-height: 1.2em; margin: 12px 0 0; }
   </style>
 </head>
 <body>
@@ -232,34 +399,99 @@
           <span>Private files on this machine</span>
         </div>
       </div>
-      <div class="who hidden" id="who-bar">
-        <span id="who"></span>
-        <button type="button" class="ghost" id="logout">Log out</button>
+      <div class="account hidden" id="who-bar">
+        <div class="pfp-wrap">
+          <button type="button" class="pfp" id="pfp" aria-haspopup="menu" aria-expanded="false">
+            <span id="pfp-letter">?</span>
+            <img id="pfp-img" class="hidden" alt="" />
+          </button>
+          <span id="pfp-badge" class="pfp-badge hidden">0</span>
+        </div>
+        <div class="account-menu hidden" id="account-menu" role="menu">
+          <div class="account-meta">
+            <strong id="menu-name">Signed in</strong>
+            <span id="menu-email"></span>
+          </div>
+          <button type="button" class="menu-item" id="open-notifications">
+            Notifications <span id="menu-badge" class="menu-badge hidden">0</span>
+          </button>
+          <button type="button" class="menu-item" id="open-settings">Settings</button>
+          <button type="button" class="menu-item" id="logout">Log out</button>
+        </div>
       </div>
     </header>
 
     <section id="auth" class="auth-wrap card">
-      <h2>Sign in to your vault</h2>
-      <p class="lead">Create an account or log in. Files stay on this computer, under names you choose.</p>
-      <label for="email">Email</label>
-      <input id="email" type="email" autocomplete="username" placeholder="you@example.com" />
-      <label for="password">Password (8+ characters)</label>
-      <input id="password" type="password" autocomplete="current-password" />
-      <div class="actions">
-        <button type="button" id="register">Create account</button>
-        <button type="button" class="ghost" id="login">Log in</button>
+      <h2 id="auth-title">Welcome back</h2>
+      <p class="lead" id="auth-lead">Sign in to open your vault. Personal files are encrypted in your browser before upload.</p>
+
+      <div class="auth-switch" id="auth-switch">
+        <span class="auth-switch-pill" id="auth-pill"></span>
+        <button type="button" class="auth-switch-btn on" id="tab-signin">Sign in</button>
+        <button type="button" class="auth-switch-btn" id="tab-signup">Create account</button>
+      </div>
+
+      <div class="auth-stage">
+        <div class="auth-pane" id="pane-form">
+          <label for="email">Email</label>
+          <input id="email" type="email" autocomplete="username" placeholder="you@example.com" />
+          <label for="password" id="password-label">Password</label>
+          <input id="password" type="password" autocomplete="off" />
+          <label class="remember" id="remember-row">
+            <input id="remember-me" type="checkbox" />
+            Remember me on this computer
+          </label>
+          <button type="button" class="auth-go" id="auth-submit">Sign in</button>
+          <p class="auth-links" id="signin-links">
+            <button type="button" class="link" id="forgot-open">Forgot password?</button>
+          </p>
+        </div>
+
+        <div class="auth-pane hidden" id="pane-forgot">
+          <label for="forgot-email">Email</label>
+          <input id="forgot-email" type="email" autocomplete="username" placeholder="you@example.com" />
+          <button type="button" class="auth-go" id="forgot-send">Send reset code</button>
+          <p class="auth-links">
+            <button type="button" class="link" id="forgot-back">Back to sign in</button>
+          </p>
+        </div>
+
+        <div class="auth-pane hidden" id="pane-code">
+          <label for="code">6-digit code</label>
+          <input id="code" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000" />
+          <div id="reset-pass-wrap" class="hidden">
+            <label for="new-password">New password (8+ characters)</label>
+            <input id="new-password" type="password" autocomplete="new-password" />
+          </div>
+          <button type="button" class="auth-go" id="code-submit">Confirm</button>
+          <div class="actions" style="margin-top:12px">
+            <button type="button" class="ghost" id="code-resend">Resend code</button>
+            <button type="button" class="ghost" id="code-back">Back</button>
+          </div>
+        </div>
       </div>
       <p class="err" id="auth-err"></p>
+      <p class="ok" id="auth-ok"></p>
     </section>
 
     <section id="drive" class="hidden">
-      <div class="drop" id="drop" role="button" tabindex="0">
-        <strong>Drop a file here</strong>
-        <span id="drop-hint">or click to choose one from your computer</span>
-      </div>
       <input id="file" type="file" />
+      <div class="usage">
+        <div id="usage-label">0 B / 5 GB used</div>
+        <div class="usage-bar"><span id="usage-fill"></span></div>
+      </div>
       <p class="err" id="drive-err"></p>
       <div id="share-banner" class="banner hidden"></div>
+      <div id="collab-bar" class="collab-bar hidden">
+        <div>
+          <strong id="collab-name">Shared folder</strong>
+          <span id="collab-members">Invite people by email</span>
+        </div>
+        <form id="invite-form" class="folder-form" style="margin:0">
+          <input id="invite-email" type="email" placeholder="name@email.com" autocomplete="off" />
+          <button type="submit">Invite</button>
+        </form>
+      </div>
       <form id="folder-form" class="folder-form hidden">
         <input id="folder-name" type="text" maxlength="80" placeholder="Folder name, e.g. photos" autocomplete="off" />
         <button type="submit">Create</button>
@@ -268,69 +500,589 @@
       <div class="toolbar">
         <div class="crumbs" id="crumbs"></div>
         <div class="stats">
-          <span id="count">0 files</span>
-          <span id="bytes">0 B used</span>
-          <button type="button" class="ghost small" id="new-folder">New folder</button>
+          <span class="count" id="count">0 files</span>
+          <div class="tool-group" role="group" aria-label="View">
+            <button type="button" class="icon-btn" id="view-list" title="List" aria-label="List"></button>
+            <button type="button" class="icon-btn" id="view-grid" title="Grid" aria-label="Grid"></button>
+          </div>
+          <div class="tool-group">
+            <button type="button" class="icon-btn" id="upload" title="Upload" aria-label="Upload"></button>
+          </div>
+          <div class="tool-group">
+            <button type="button" class="icon-btn" id="new-folder" title="New folder" aria-label="New folder"></button>
+            <button type="button" class="icon-btn" id="new-shared" title="New shared folder" aria-label="New shared folder"></button>
+          </div>
         </div>
       </div>
-      <ul class="files card" id="files"></ul>
+      <ul class="files card list" id="files"></ul>
+    </section>
+
+    <section id="settings" class="settings-page hidden">
+      <button type="button" class="ghost small settings-back" id="settings-back">Back to files</button>
+      <div class="card">
+        <h2>Settings</h2>
+        <p class="lead">Photo, name, theme, and color stay with your account.</p>
+        <label>Profile photo</label>
+        <div class="pfp-xl" id="settings-pfp">
+          <span id="settings-pfp-letter">?</span>
+          <img id="settings-pfp-img" class="hidden" alt="" />
+        </div>
+        <input id="avatar-file" type="file" accept="image/*" class="hidden" />
+        <div class="actions" style="margin-bottom:18px">
+          <button type="button" id="avatar-pick">Upload photo</button>
+          <button type="button" class="ghost hidden" id="avatar-remove">Remove</button>
+        </div>
+        <label for="display-name">Display name</label>
+        <input id="display-name" type="text" maxlength="80" placeholder="How you want to be greeted" />
+        <label>Theme</label>
+        <div class="theme-row">
+          <button type="button" class="ghost small" id="theme-dark">Dark</button>
+          <button type="button" class="ghost small" id="theme-light">Light</button>
+        </div>
+        <label>Accent color</label>
+        <div class="swatches" id="swatches"></div>
+        <p class="err" id="profile-err"></p>
+        <p class="ok" id="profile-ok"></p>
+        <div class="actions">
+          <button type="button" id="profile-save">Save</button>
+        </div>
+        <div class="vault-note">
+          <h3>Encryption</h3>
+          <p class="lead">Personal files are scrambled on this device before they leave the browser. The host can see names and sizes, not the bytes. Shared folders are not end-to-end encrypted. Resetting your password starts a new vault key, so older files cannot be opened.</p>
+        </div>
+        <div class="danger-zone">
+          <h3>Delete account</h3>
+          <p class="lead">Permanently erase this account. Files, shared folders you own, and your profile will be gone and cannot be recovered.</p>
+          <button type="button" class="danger-fill" id="delete-account">Delete my account</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="notifications" class="settings-page hidden">
+      <button type="button" class="ghost small settings-back" id="notifications-back">Back to files</button>
+      <div class="card">
+        <h2>Notifications</h2>
+        <p class="lead">Invites and replies land here so you can deal with them when you open Mini Cloud.</p>
+        <div class="actions" style="margin-bottom:14px">
+          <button type="button" class="ghost small" id="mark-all-read">Mark all read</button>
+        </div>
+        <div id="notif-list"></div>
+      </div>
     </section>
   </div>
+
+  <div id="page-drop" class="page-drop hidden">
+    <div>
+      <strong>Drop to upload</strong>
+      <span id="drop-hint">into this folder</span>
+    </div>
+  </div>
+
+  <div id="upload-modal" class="overlay hidden">
+    <div class="card modal">
+      <h2>Upload file</h2>
+      <label for="upload-name">Name in this folder</label>
+      <input id="upload-name" type="text" maxlength="200" />
+      <label><input id="compress-on" type="checkbox" checked /> Try to shrink before upload</label>
+      <div id="mode-row" class="modes">
+        <label><input type="radio" name="cmode" id="mode-lossy" value="lossy" checked /> Lossy (JPEG — smaller, some quality lost)</label>
+        <label><input type="radio" name="cmode" id="mode-lossless" value="lossless" /> Lossless (keep every pixel)</label>
+      </div>
+      <div id="quality-row">
+        <label for="quality">Lossy quality</label>
+        <input id="quality" type="range" min="40" max="95" value="75" />
+      </div>
+      <div class="estimate" id="estimate">Preparing estimate…</div>
+      <p class="err" id="modal-err"></p>
+      <div class="actions">
+        <button type="button" id="upload-go">Upload</button>
+        <button type="button" class="ghost" id="upload-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="preview-modal" class="overlay hidden">
+    <div class="card modal wide">
+      <h2 id="preview-title">Preview</h2>
+      <div id="preview-body">Loading…</div>
+      <div class="actions">
+        <button type="button" id="preview-download">Download</button>
+        <button type="button" class="ghost" id="preview-close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="delete-account-modal" class="overlay hidden">
+    <div class="card modal delete-modal">
+      <h2>Delete this account forever?</h2>
+      <p class="lead" style="color:var(--muted)">This cannot be undone. Everything will be lost and is irretrievable:</p>
+      <ul>
+        <li>Every file and folder in your vault</li>
+        <li>Shared folders you own, including other people's access to them</li>
+        <li>Your profile photo, name, theme, and notifications</li>
+      </ul>
+      <label for="delete-confirm-text">Type DELETE to confirm this is permanent</label>
+      <input id="delete-confirm-text" type="text" autocomplete="off" placeholder="DELETE" />
+      <p class="err" id="delete-account-err"></p>
+      <div class="actions">
+        <button type="button" class="danger-fill" id="delete-account-go" disabled>Delete forever</button>
+        <button type="button" class="ghost" id="delete-account-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="confirm-modal" class="overlay hidden">
+    <div class="card modal">
+      <h2 id="confirm-title">Are you sure?</h2>
+      <p class="lead" id="confirm-text" style="color:var(--muted)"></p>
+      <div class="actions">
+        <button type="button" class="danger" id="confirm-ok">Delete</button>
+        <button type="button" class="ghost" id="confirm-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="convert-modal" class="overlay hidden">
+    <div class="card modal">
+      <h2 id="convert-title">Convert file</h2>
+      <p class="lead" style="color:var(--muted)">Runs on this machine. Pictures stay pictures. Word and PDF become the text inside them.</p>
+      <label for="convert-to">Convert to</label>
+      <select id="convert-to"></select>
+      <label for="convert-name">Save as</label>
+      <input id="convert-name" type="text" maxlength="200" />
+      <p class="err" id="convert-err"></p>
+      <p class="ok" id="convert-ok"></p>
+      <div class="actions">
+        <button type="button" id="convert-go">Convert and save</button>
+        <button type="button" class="ghost" id="convert-close">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const $ = (id) => document.getElementById(id);
     const tokenKey = "minicloud.token";
     const emailKey = "minicloud.email";
-    const token = () => localStorage.getItem(tokenKey);
+    const rememberKey = "minicloud.remember";
+    const savedEmailKey = "minicloud.saved-email";
+    const viewKey = "minicloud.view";
+    const dekKey = "minicloud.dek";
+    const token = () => sessionStorage.getItem(tokenKey) || localStorage.getItem(tokenKey);
+    const storedEmail = () => sessionStorage.getItem(emailKey) || localStorage.getItem(emailKey) || "";
+    function apiPath(kind, key) {
+      return "/v1/" + kind + "/" + key.split("/").map(encodeURIComponent).join("/");
+    }
+    function fileAPI(kind, key) {
+      if (currentShare) return apiPath("collab/folders/" + currentShare.id + "/" + kind, key);
+      return apiPath(kind, key);
+    }
+
+    const MOVE_TYPE = "application/x-minicloud-key";
     let thumbURLs = [];
     let currentPrefix = "";
+    let currentShare = null;
+    let folderIntent = "normal";
+    let viewMode = localStorage.getItem(viewKey) || "list";
+    let pendingFile = null;
+    let pendingBlob = null;
+    let estimateTimer = null;
+    let previewURL = null;
+    let vaultFiles = [];
+    let pendingPassword = "";
+    let vaultDEK = null;
+
+    function b64bytes(bytes) {
+      let s = "";
+      for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+      return btoa(s);
+    }
+    function unb64(s) {
+      return Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+    }
+    function b64url(bytes) {
+      return b64bytes(bytes).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    }
+    function sessionStore() {
+      return localStorage.getItem(tokenKey) ? localStorage : sessionStorage;
+    }
+    function readStoredDEK() {
+      const raw = sessionStorage.getItem(dekKey) || localStorage.getItem(dekKey);
+      if (!raw) return null;
+      try { return unb64(raw); } catch { return null; }
+    }
+    function persistDEK(dek) {
+      vaultDEK = dek;
+      sessionStorage.removeItem(dekKey);
+      localStorage.removeItem(dekKey);
+      if (dek) sessionStore().setItem(dekKey, b64bytes(dek));
+    }
+    function clearDEK() {
+      vaultDEK = null;
+      sessionStorage.removeItem(dekKey);
+      localStorage.removeItem(dekKey);
+    }
+    async function kekFromPassword(password, salt) {
+      const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
+      return crypto.subtle.deriveKey(
+        { name: "PBKDF2", salt, iterations: 210000, hash: "SHA-256" },
+        base,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["encrypt", "decrypt"],
+      );
+    }
+    async function wrapBytes(rawKey, data) {
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const key = await crypto.subtle.importKey("raw", rawKey, "AES-GCM", false, ["encrypt"]);
+      const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, data));
+      const out = new Uint8Array(12 + ct.length);
+      out.set(iv);
+      out.set(ct, 12);
+      return out;
+    }
+    async function unwrapBytes(rawKey, packed) {
+      const iv = packed.slice(0, 12);
+      const ct = packed.slice(12);
+      const key = await crypto.subtle.importKey("raw", rawKey, "AES-GCM", false, ["decrypt"]);
+      return new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ct));
+    }
+    async function wrapDEK(password, dek) {
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      const kek = await kekFromPassword(password, salt);
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, kek, dek));
+      const wrap = new Uint8Array(12 + ct.length);
+      wrap.set(iv);
+      wrap.set(ct, 12);
+      return { salt: b64bytes(salt), wrap: b64bytes(wrap) };
+    }
+    async function unwrapDEK(password, saltB64, wrapB64) {
+      const kek = await kekFromPassword(password, unb64(saltB64));
+      const packed = unb64(wrapB64);
+      const iv = packed.slice(0, 12);
+      const ct = packed.slice(12);
+      return new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv }, kek, ct));
+    }
+    async function encryptForUpload(blob) {
+      if (!vaultDEK) throw new Error("vault locked");
+      const fek = crypto.getRandomValues(new Uint8Array(32));
+      const plain = new Uint8Array(await blob.arrayBuffer());
+      const body = await wrapBytes(fek, plain);
+      const wrap = b64bytes(await wrapBytes(vaultDEK, fek));
+      return { body, wrap };
+    }
+    async function decryptDownload(buf, wrapB64) {
+      if (!vaultDEK || !wrapB64) return new Uint8Array(buf);
+      const fek = await unwrapBytes(vaultDEK, unb64(wrapB64));
+      return unwrapBytes(fek, new Uint8Array(buf));
+    }
+    async function unlockOrCreateVault(data, password) {
+      if (!password) {
+        vaultDEK = readStoredDEK();
+        return;
+      }
+      if (data.vault_salt && data.vault_wrap) {
+        vaultDEK = await unwrapDEK(password, data.vault_salt, data.vault_wrap);
+        persistDEK(vaultDEK);
+        return;
+      }
+      const dek = crypto.getRandomValues(new Uint8Array(32));
+      const packed = await wrapDEK(password, dek);
+      const res = await fetch("/v1/me/vault", {
+        method: "PUT",
+        headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
+        body: JSON.stringify({ vault_salt: packed.salt, vault_wrap: packed.wrap }),
+      });
+      if (!res.ok) throw new Error("could not save vault key");
+      const saved = await res.json();
+      if (saved.vault_wrap && saved.vault_wrap !== packed.wrap) {
+        vaultDEK = await unwrapDEK(password, saved.vault_salt, saved.vault_wrap);
+      } else {
+        vaultDEK = dek;
+      }
+      persistDEK(vaultDEK);
+    }
+    function fileByKey(key) {
+      return vaultFiles.find((f) => f.key === key) || { key, enc_ver: 0 };
+    }
+    function isEncrypted(f) {
+      return !!(f && f.enc_ver === 1 && f.enc_wrap);
+    }
+    let profile = { email: "", display_name: "", theme: "dark", accent: "#d4a574" };
+    const ACCENTS = ["#d4a574", "#4a90d9", "#5cbf8a", "#e07a6a", "#9b7ed9"];
+
+    function formatSize(n) {
+      if (n < 1024) return n + " B";
+      if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
+      if (n < 1024 * 1024 * 1024) return (n / (1024 * 1024)).toFixed(1) + " MB";
+      return (n / (1024 * 1024 * 1024)).toFixed(2) + " GB";
+    }
+
+    function isImageFile(file) {
+      return file && file.type && file.type.startsWith("image/") && file.type !== "image/svg+xml";
+    }
+
+    function stem(name) {
+      return name.replace(/\.[^.]+$/, "") || name;
+    }
+
+    function cleanName(name) {
+      try {
+        if (name.includes("%")) name = decodeURIComponent(name);
+      } catch (_) {}
+      return name.replace(/[\\/]/g, "").trim();
+    }
+
+    function suggestedName(file, compress, mode) {
+      const original = cleanName(file.name);
+      const base = stem(original);
+      if (!compress) return original;
+      if (isImageFile(file)) return mode === "lossy" ? base + ".jpg" : base + ".png";
+      return original + ".gz";
+    }
+
+    async function gzipBlob(blob) {
+      const stream = blob.stream().pipeThrough(new CompressionStream("gzip"));
+      return new Response(stream).blob();
+    }
+
+    function canvasToBlob(canvas, type, quality) {
+      return new Promise((resolve, reject) => {
+        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("encode failed"))), type, quality);
+      });
+    }
+
+    async function recompressImage(file, mode, quality) {
+      const bmp = await createImageBitmap(file);
+      const canvas = document.createElement("canvas");
+      canvas.width = bmp.width;
+      canvas.height = bmp.height;
+      canvas.getContext("2d").drawImage(bmp, 0, 0);
+      bmp.close();
+      if (mode === "lossy") return canvasToBlob(canvas, "image/jpeg", quality);
+      return canvasToBlob(canvas, "image/png");
+    }
+
+    function keepOriginal(blob) {
+      return !blob || blob.size >= pendingFile.size;
+    }
+
+    async function buildUploadBlob() {
+      const file = pendingFile;
+      if (!$("compress-on").checked) return { blob: file, kept: true };
+      const mode = $("mode-lossy").checked ? "lossy" : "lossless";
+      const quality = Number($("quality").value) / 100;
+      const next = isImageFile(file)
+        ? await recompressImage(file, mode, quality)
+        : await gzipBlob(file);
+      if (keepOriginal(next)) return { blob: file, kept: true };
+      return { blob: next, kept: false };
+    }
+
+    async function refreshEstimate() {
+      if (!pendingFile) return;
+      $("estimate").innerHTML = "Working out sizes…";
+      $("modal-err").textContent = "";
+      try {
+        const { blob, kept } = await buildUploadBlob();
+        pendingBlob = blob;
+        const orig = pendingFile.size;
+        const next = blob.size;
+        const delta = orig - next;
+        const mode = $("mode-lossy").checked ? "lossy" : "lossless";
+        if (kept && $("compress-on").checked) {
+          $("upload-name").value = cleanName(pendingFile.name);
+          if (isImageFile(pendingFile) && mode === "lossless") {
+            $("estimate").innerHTML = "Original <strong>" + formatSize(orig) + "</strong> stays as-is. A photo is already packed; turning it into a lossless PNG almost always makes a bigger file, so we keep yours.";
+          } else {
+            $("estimate").innerHTML = "Original <strong>" + formatSize(orig) + "</strong> is already as small as we can get it. Uploading that, not a larger copy.";
+          }
+          return;
+        }
+        let line = "Original <strong>" + formatSize(orig) + "</strong> → upload <strong>" + formatSize(next) + "</strong>";
+        if (delta > 1024) line += " · saves " + formatSize(delta);
+        else line += " · almost the same size";
+        $("estimate").innerHTML = line;
+      } catch (err) {
+        pendingBlob = pendingFile;
+        $("estimate").textContent = "Could not compress this file; it will upload as-is.";
+      }
+    }
+
+    function scheduleEstimate() {
+      clearTimeout(estimateTimer);
+      estimateTimer = setTimeout(refreshEstimate, 180);
+    }
+
+    function syncCompressUI() {
+      const on = $("compress-on").checked;
+      const img = pendingFile && isImageFile(pendingFile);
+      $("mode-row").classList.toggle("hidden", !on || !img);
+      $("quality-row").classList.toggle("hidden", !on || !img || !$("mode-lossy").checked);
+      if (pendingFile) {
+        const mode = $("mode-lossy").checked ? "lossy" : "lossless";
+        $("upload-name").value = suggestedName(pendingFile, on, mode);
+      }
+      scheduleEstimate();
+    }
+
+    function openUploadModal(file) {
+      pendingFile = file;
+      pendingBlob = null;
+      $("modal-err").textContent = "";
+      $("compress-on").checked = true;
+      $("mode-lossy").checked = isImageFile(file);
+      $("mode-lossless").checked = !isImageFile(file);
+      $("quality").value = "75";
+      $("upload-modal").classList.remove("hidden");
+      syncCompressUI();
+      $("upload-name").focus();
+    }
+
+    function closeUploadModal() {
+      $("upload-modal").classList.add("hidden");
+      pendingFile = null;
+      pendingBlob = null;
+      $("file").value = "";
+    }
+
+    async function confirmUpload() {
+      const name = ($("upload-name").value || "").trim();
+      if (!name || name.includes("..") || name.includes("\\") || name.includes("/")) {
+        $("modal-err").textContent = "Use a simple file name, no slashes";
+        return;
+      }
+      $("upload-go").disabled = true;
+      try {
+        if (!pendingBlob) await refreshEstimate();
+        const body = pendingBlob || pendingFile;
+        const key = currentPrefix + name;
+        $("upload-go").textContent = "Uploading…";
+        const headers = { Authorization: "Bearer " + token() };
+        let send = body;
+        if (!currentShare && vaultDEK) {
+          $("upload-go").textContent = "Encrypting…";
+          const enc = await encryptForUpload(body);
+          send = enc.body;
+          headers["X-Minicloud-Enc"] = "1";
+          headers["X-Minicloud-Wrap"] = enc.wrap;
+          $("upload-go").textContent = "Uploading…";
+        }
+        const res = await fetch(fileAPI("objects", key), {
+          method: "PUT",
+          headers,
+          body: send,
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          $("modal-err").textContent = data.error || "Upload failed";
+          return;
+        }
+        closeUploadModal();
+        refresh();
+      } finally {
+        $("upload-go").disabled = false;
+        $("upload-go").textContent = "Upload";
+      }
+    }
 
     function clearThumbs() {
       for (const u of thumbURLs) URL.revokeObjectURL(u);
       thumbURLs = [];
     }
 
-    async function fillThumb(key, img) {
-      const r = await fetch("/v1/thumbs/" + encodeURIComponent(key), {
-        headers: { Authorization: "Bearer " + token() },
-      });
-      if (!r.ok) return;
-      const url = URL.createObjectURL(await r.blob());
-      thumbURLs.push(url);
-      img.src = url;
+    async function fillThumb(f, img) {
+      const tryURL = async (path, wrap) => {
+        const r = await fetch(path, { headers: { Authorization: "Bearer " + token() } });
+        if (!r.ok) return false;
+        let bytes = new Uint8Array(await r.arrayBuffer());
+        if (bytes.length < 8) return false;
+        if (wrap && vaultDEK) {
+          try { bytes = await decryptDownload(bytes.buffer, wrap); }
+          catch { return false; }
+        }
+        const url = URL.createObjectURL(new Blob([bytes]));
+        thumbURLs.push(url);
+        img.src = url;
+        return true;
+      };
+      img.onerror = () => img.remove();
+      if (!isEncrypted(f) && await tryURL(fileAPI("thumbs", f.key))) return;
+      if (isImageKey(f.key) && await tryURL(fileAPI("objects", f.key), f.enc_wrap)) return;
+      img.remove();
     }
 
-    function formatSize(n) {
-      if (n < 1024) return n + " B";
-      if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
-      return (n / (1024 * 1024)).toFixed(1) + " MB";
+    function fileExt(name) {
+      return (name.split(".").pop() || "").toLowerCase();
+    }
+
+    function isImageKey(name) {
+      const ext = fileExt(name);
+      return ["png", "jpg", "jpeg", "gif", "webp", "svg"].some((e) => ext === e || ext.startsWith(e));
+    }
+
+    function prettyName(key) {
+      const raw = key.slice(currentPrefix.length);
+      try {
+        if (raw.includes("%")) return decodeURIComponent(raw);
+      } catch (_) {}
+      return raw;
+    }
+
+    const ICONS = {
+      share: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>',
+      download: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v12"/><path d="M7 12l5 5 5-5"/><path d="M5 20h14"/></svg>',
+      trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14"/><path d="M10 7V5h4v2"/><path d="M8 7l1 12h6l1-12"/></svg>',
+      convert: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h11l-3-3"/><path d="M18 7v6"/><path d="M17 17H6l3 3"/><path d="M6 17V11"/></svg>',
+      list: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>',
+      grid: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4z"/><path d="M13 4h7v7h-7z"/><path d="M4 13h7v7H4z"/><path d="M13 13h7v7h-7z"/></svg>',
+      upload: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V8"/><path d="M7 12l5-5 5 5"/><path d="M5 20h14"/></svg>',
+      folder: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h6l2 2h10v10H3z"/><path d="M12 12v6"/><path d="M9 15h6"/></svg>',
+      people: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M3 19c0-3 2.5-5 6-5s6 2 6 5"/><path d="M17 11a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"/><path d="M16 14c2.8.3 5 2.2 5 5"/></svg>',
+    };
+
+    function paintIcon(id, kind) {
+      const el = $(id);
+      if (!el) return;
+      el.innerHTML = ICONS[kind];
+    }
+
+    function iconBtn(kind, label, className, onClick) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "icon-btn " + className;
+      b.title = label;
+      b.setAttribute("aria-label", label);
+      b.innerHTML = ICONS[kind];
+      b.onclick = onClick;
+      return b;
     }
 
     function kind(name) {
-      const ext = (name.split(".").pop() || "").toLowerCase();
-      if (["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext)) return { cls: "img", label: "IMG" };
+      const ext = fileExt(name);
+      if (isImageKey(name)) return { cls: "img", label: "IMG" };
       if (["pdf", "doc", "docx", "txt", "md"].includes(ext)) return { cls: "doc", label: ext.toUpperCase().slice(0, 3) };
       return { cls: "", label: (ext || "FILE").toUpperCase().slice(0, 4) };
     }
 
     function folderStoreKey() {
-      return "minicloud.folders:" + (localStorage.getItem(emailKey) || "");
+      return "minicloud.folders:" + (storedEmail() || "");
     }
-
     function rememberedFolders() {
-      try {
-        return JSON.parse(localStorage.getItem(folderStoreKey()) || "[]");
-      } catch {
-        return [];
-      }
+      try { return JSON.parse(localStorage.getItem(folderStoreKey()) || "[]"); }
+      catch { return []; }
     }
-
     function rememberFolder(prefix) {
       const all = new Set(rememberedFolders());
       all.add(prefix);
       localStorage.setItem(folderStoreKey(), JSON.stringify([...all]));
     }
+    function forgetFolder(prefix) {
+      const next = rememberedFolders().filter((p) => p !== prefix && !p.startsWith(prefix));
+      localStorage.setItem(folderStoreKey(), JSON.stringify(next));
+    }
 
-    function splitListing(files, prefix) {
+    function splitListing(files, prefix, extraPrefixes) {
       const folders = new Set();
       const here = [];
       for (const f of files) {
@@ -343,7 +1095,8 @@
           folders.add(rest.slice(0, slash));
         }
       }
-      for (const saved of rememberedFolders()) {
+      const savedList = extraPrefixes || (currentShare ? [] : rememberedFolders());
+      for (const saved of savedList) {
         if (!saved.startsWith(prefix)) continue;
         const rest = saved.slice(prefix.length).replace(/\/$/, "");
         if (rest && !rest.includes("/")) folders.add(rest);
@@ -355,23 +1108,27 @@
       currentPrefix = prefix;
       refresh();
     }
-
-    const MOVE_TYPE = "application/x-minicloud-key";
-
-    function basename(key) {
-      return key.split("/").pop();
+    function goHome() {
+      currentShare = null;
+      currentPrefix = "";
+      refresh();
     }
+    function openShare(folder) {
+      currentShare = folder;
+      currentPrefix = "";
+      refresh();
+    }
+
+    function basename(key) { return key.split("/").pop(); }
 
     async function moveFile(from, destPrefix) {
       const to = destPrefix + basename(from);
       if (to === from) return;
       $("drive-err").textContent = "";
-      const res = await fetch("/v1/move", {
+      const path = currentShare ? "/v1/collab/folders/" + currentShare.id + "/move" : "/v1/move";
+      const res = await fetch(path, {
         method: "POST",
-        headers: {
-          Authorization: "Bearer " + token(),
-          "Content-Type": "application/json",
-        },
+        headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
         body: JSON.stringify({ from, to }),
       });
       if (!res.ok) {
@@ -385,9 +1142,7 @@
     function enableMoveDrop(el, destPrefix) {
       el.addEventListener("dragover", (e) => {
         if (![...e.dataTransfer.types].includes(MOVE_TYPE) &&
-            ![...e.dataTransfer.types].includes("text/plain")) {
-          return;
-        }
+            ![...e.dataTransfer.types].includes("text/plain")) return;
         e.preventDefault();
         e.stopPropagation();
         e.dataTransfer.dropEffect = "move";
@@ -404,6 +1159,15 @@
       });
     }
 
+    function setView(mode) {
+      viewMode = mode;
+      localStorage.setItem(viewKey, mode);
+      $("files").classList.toggle("list", mode === "list");
+      $("files").classList.toggle("grid", mode === "grid");
+      $("view-list").classList.toggle("active", mode === "list");
+      $("view-grid").classList.toggle("active", mode === "grid");
+    }
+
     function renderCrumbs() {
       const el = $("crumbs");
       el.innerHTML = "";
@@ -411,9 +1175,19 @@
       home.type = "button";
       home.className = "link";
       home.textContent = "All files";
-      home.onclick = () => setPrefix("");
-      enableMoveDrop(home, "");
+      home.onclick = goHome;
+      if (!currentShare) enableMoveDrop(home, "");
       el.append(home);
+      if (currentShare) {
+        el.append(document.createTextNode(" / "));
+        const shareCrumb = document.createElement("button");
+        shareCrumb.type = "button";
+        shareCrumb.className = "link";
+        shareCrumb.textContent = currentShare.name;
+        shareCrumb.onclick = () => setPrefix("");
+        enableMoveDrop(shareCrumb, "");
+        el.append(shareCrumb);
+      }
       if (!currentPrefix) return;
       const parts = currentPrefix.replace(/\/$/, "").split("/");
       let walk = "";
@@ -431,134 +1205,751 @@
       }
     }
 
-    function showDrive() {
-      $("auth").classList.add("hidden");
-      $("drive").classList.remove("hidden");
-      $("who-bar").classList.remove("hidden");
-      $("who").textContent = localStorage.getItem(emailKey);
-      refresh();
+    function contrastInk(hex) {
+      const n = (hex || "").replace("#", "");
+      if (n.length !== 6) return "#1a140c";
+      const r = parseInt(n.slice(0, 2), 16), g = parseInt(n.slice(2, 4), 16), b = parseInt(n.slice(4, 6), 16);
+      return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.62 ? "#1a140c" : "#f2efe8";
     }
 
-    function showAuth() {
-      $("drive").classList.add("hidden");
-      $("who-bar").classList.add("hidden");
-      $("auth").classList.remove("hidden");
+    function initialsOf(p) {
+      const name = (p.display_name || p.email || storedEmail() || "?").trim();
+      if (name.includes("@")) return name[0].toUpperCase();
+      const parts = name.split(/\s+/).filter(Boolean);
+      return ((parts[0] || "?").slice(0, 1) + (parts[1] ? parts[1].slice(0, 1) : "")).toUpperCase();
     }
 
-    async function sendAuth(path) {
-      $("auth-err").textContent = "";
-      const res = await fetch(path, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: $("email").value, password: $("password").value }),
+    let pfpObjectURL = null;
+
+    function showInitials(letter) {
+      $("pfp-letter").textContent = letter;
+      $("pfp-letter").classList.remove("hidden");
+      $("pfp-img").classList.add("hidden");
+      $("pfp-img").removeAttribute("src");
+      $("settings-pfp-letter").textContent = letter;
+      $("settings-pfp-letter").classList.remove("hidden");
+      $("settings-pfp-img").classList.add("hidden");
+      $("settings-pfp-img").removeAttribute("src");
+      $("avatar-remove").classList.add("hidden");
+    }
+
+    async function showAvatarPhoto() {
+      if (pfpObjectURL) {
+        URL.revokeObjectURL(pfpObjectURL);
+        pfpObjectURL = null;
+      }
+      const r = await fetch("/v1/me/avatar", { headers: { Authorization: "Bearer " + token() } });
+      if (!r.ok) {
+        showInitials(initialsOf(profile));
+        return;
+      }
+      pfpObjectURL = URL.createObjectURL(await r.blob());
+      $("pfp-letter").classList.add("hidden");
+      $("pfp-img").classList.remove("hidden");
+      $("pfp-img").src = pfpObjectURL;
+      $("settings-pfp-letter").classList.add("hidden");
+      $("settings-pfp-img").classList.remove("hidden");
+      $("settings-pfp-img").src = pfpObjectURL;
+      $("avatar-remove").classList.remove("hidden");
+    }
+
+    function applyProfile(p) {
+      profile = p;
+      document.documentElement.classList.toggle("theme-light", p.theme === "light");
+      document.documentElement.style.setProperty("--accent", p.accent || "#d4a574");
+      document.documentElement.style.setProperty("--accent-ink", contrastInk(p.accent || "#d4a574"));
+      const letter = initialsOf(p);
+      $("menu-name").textContent = p.display_name || "Signed in";
+      $("menu-email").textContent = p.email || storedEmail() || "";
+      $("display-name").value = p.display_name || "";
+      $("theme-dark").classList.toggle("active", p.theme !== "light");
+      $("theme-light").classList.toggle("active", p.theme === "light");
+      renderSwatches();
+      if (p.has_avatar) showAvatarPhoto();
+      else showInitials(letter);
+      setUnreadBadge(p.unread_count || 0);
+    }
+
+    function setUnreadBadge(n) {
+      const count = Number(n) || 0;
+      const label = count > 9 ? "9+" : String(count);
+      ["pfp-badge", "menu-badge"].forEach((id) => {
+        const el = $(id);
+        el.textContent = label;
+        el.classList.toggle("hidden", count < 1);
+      });
+    }
+
+    function renderSwatches() {
+      const box = $("swatches");
+      box.innerHTML = "";
+      for (const c of ACCENTS) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "swatch" + (profile.accent === c ? " on" : "");
+        b.style.setProperty("--c", c);
+        b.title = c;
+        b.onclick = () => { profile.accent = c; applyProfile(profile); };
+        box.append(b);
+      }
+      const picker = document.createElement("input");
+      picker.type = "color";
+      picker.value = profile.accent || "#d4a574";
+      picker.title = "Custom color";
+      picker.oninput = () => { profile.accent = picker.value; applyProfile(profile); };
+      box.append(picker);
+    }
+
+    async function loadProfile() {
+      const res = await fetch("/v1/me", { headers: { Authorization: "Bearer " + token() } });
+      if (!res.ok) return;
+      applyProfile(await res.json());
+    }
+
+    async function saveProfile() {
+      $("profile-err").textContent = "";
+      $("profile-ok").textContent = "";
+      const res = await fetch("/v1/me", {
+        method: "PATCH",
+        headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
+        body: JSON.stringify({
+          display_name: $("display-name").value,
+          theme: profile.theme,
+          accent: profile.accent,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
-        $("auth-err").textContent = data.error || "Something went wrong";
+        $("profile-err").textContent = data.error || "Could not save profile";
         return;
       }
-      localStorage.setItem(tokenKey, data.token);
-      localStorage.setItem(emailKey, data.email);
+      applyProfile(data);
+      $("profile-ok").textContent = "Saved.";
+    }
+
+    function closeAccountMenu() {
+      $("account-menu").classList.add("hidden");
+      $("pfp").setAttribute("aria-expanded", "false");
+    }
+
+    function toggleAccountMenu() {
+      const open = $("account-menu").classList.toggle("hidden") === false;
+      $("pfp").setAttribute("aria-expanded", open ? "true" : "false");
+    }
+
+    function openSettings() {
+      closeAccountMenu();
+      $("profile-err").textContent = "";
+      $("profile-ok").textContent = "";
+      $("drive").classList.add("hidden");
+      $("notifications").classList.add("hidden");
+      $("settings").classList.remove("hidden");
+    }
+
+    function closeSettings() {
+      $("settings").classList.add("hidden");
+      $("notifications").classList.add("hidden");
+      $("drive").classList.remove("hidden");
+    }
+
+    function openNotifications() {
+      closeAccountMenu();
+      $("drive").classList.add("hidden");
+      $("settings").classList.add("hidden");
+      $("notifications").classList.remove("hidden");
+      loadNotifications();
+    }
+
+    function showDrive() {
+      $("auth").classList.add("hidden");
+      $("settings").classList.add("hidden");
+      $("notifications").classList.add("hidden");
+      $("drive").classList.remove("hidden");
+      $("who-bar").classList.remove("hidden");
+      setView(viewMode);
+      loadProfile();
+      refresh();
+    }
+    function showAuth() {
+      $("drive").classList.add("hidden");
+      $("settings").classList.add("hidden");
+      $("notifications").classList.add("hidden");
+      $("who-bar").classList.add("hidden");
+      closeAccountMenu();
+      closeConvert();
+      closeDeleteAccount();
+      $("auth").classList.remove("hidden");
+      currentShare = null;
+      currentPrefix = "";
+      clearAuthForm();
+      $("remember-me").checked = localStorage.getItem(rememberKey) === "1";
+      setAuthMode("signin", true);
+    }
+
+    function convertTargets(name) {
+      const ext = (name.split(".").pop() || "").toLowerCase();
+      if (["png", "jpg", "jpeg", "gif", "webp", "bmp"].includes(ext)) return ["png", "jpg", "gif", "pdf"];
+      if (ext === "docx") return ["txt", "md", "html", "pdf"];
+      if (ext === "pdf") return ["txt", "docx"];
+      return ["txt", "md", "html", "pdf", "docx"];
+    }
+
+    let convertKey = "";
+
+    function syncConvertTo() {
+      const key = convertKey;
+      const to = $("convert-to");
+      const keep = to.value;
+      to.innerHTML = "";
+      if (!key) return;
+      const targets = convertTargets(key);
+      for (const t of targets) {
+        const o = document.createElement("option");
+        o.value = t;
+        o.textContent = t.toUpperCase();
+        to.append(o);
+      }
+      if (targets.includes(keep)) to.value = keep;
+      const base = key.replace(/\.[^.]+$/, "") || key;
+      $("convert-name").value = base + "." + to.value;
+    }
+
+    function openConvert(key) {
+      convertKey = key;
+      $("convert-title").textContent = "Convert " + prettyName(key);
+      $("convert-err").textContent = "";
+      $("convert-ok").textContent = "";
+      syncConvertTo();
+      $("convert-modal").classList.remove("hidden");
+    }
+
+    function closeConvert() {
+      $("convert-modal").classList.add("hidden");
+      convertKey = "";
+    }
+
+    async function runConvert() {
+      $("convert-err").textContent = "";
+      $("convert-ok").textContent = "";
+      const key = convertKey;
+      const to = $("convert-to").value;
+      const saveAs = ($("convert-name").value || "").trim();
+      if (!key || !to) {
+        $("convert-err").textContent = "Pick a format first";
+        return;
+      }
+      $("convert-go").disabled = true;
+      try {
+        const res = await fetch("/v1/convert", {
+          method: "POST",
+          headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
+          body: JSON.stringify({ key, to, save_as: saveAs, folder_id: currentShare ? currentShare.id : "" }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          $("convert-err").textContent = data.error || "Could not convert";
+          return;
+        }
+        closeConvert();
+        await refresh();
+      } finally {
+        $("convert-go").disabled = false;
+      }
+    }
+
+    let authMode = "signin";
+    let pendingEmail = "";
+    let codePurpose = "register";
+
+    function clearAuthNotes() {
+      $("auth-err").textContent = "";
+      $("auth-ok").textContent = "";
+    }
+
+    function showPane(id, back) {
+      ["pane-form", "pane-forgot", "pane-code"].forEach((pane) => {
+        const el = $(pane);
+        el.classList.toggle("hidden", pane !== id);
+        el.classList.toggle("back", pane === id && back);
+      });
+    }
+
+    function setAuthMode(mode, back) {
+      authMode = mode;
+      clearAuthNotes();
+      const switcher = $("auth-switch");
+      const signin = mode === "signin";
+      const signup = mode === "signup";
+      switcher.classList.toggle("hidden", mode !== "signin" && mode !== "signup");
+      switcher.classList.toggle("signup", signup);
+      $("tab-signin").classList.toggle("on", signin);
+      $("tab-signup").classList.toggle("on", signup);
+
+      if (signin || signup) {
+        $("auth-title").textContent = signin ? "Welcome back" : "Create your vault";
+        $("auth-lead").textContent = signin
+          ? "Sign in to open your vault. Personal files are encrypted in your browser before upload."
+          : "We'll email a 6-digit code so only a real inbox can register.";
+        $("password-label").textContent = signin ? "Password" : "Password (8+ characters)";
+        $("password").autocomplete = signin ? "current-password" : "new-password";
+        $("auth-submit").textContent = signin ? "Sign in" : "Send verification code";
+        $("signin-links").classList.toggle("hidden", !signin);
+        $("remember-row").classList.toggle("hidden", !signin);
+        showPane("pane-form", back || signin);
+        return;
+      }
+
+      if (mode === "forgot") {
+        $("auth-title").textContent = "Forgot password";
+        $("auth-lead").textContent = "We'll email a code. Resetting the password starts a new vault key, so files you already uploaded cannot be decrypted.";
+        if (!$("forgot-email").value) $("forgot-email").value = $("email").value;
+        showPane("pane-forgot", back);
+        return;
+      }
+
+      $("auth-title").textContent = codePurpose === "reset" ? "Reset password" : "Check your email";
+      $("auth-lead").textContent = "Enter the 6-digit code we sent. It expires in 10 minutes.";
+      $("reset-pass-wrap").classList.toggle("hidden", codePurpose !== "reset");
+      $("code-submit").textContent = codePurpose === "reset" ? "Set new password" : "Verify and enter";
+      showPane("pane-code", back);
+    }
+
+    async function saveSession(data, password) {
+      const remember = $("remember-me").checked;
+      localStorage.setItem(rememberKey, remember ? "1" : "0");
+      sessionStorage.removeItem(tokenKey);
+      sessionStorage.removeItem(emailKey);
+      localStorage.removeItem(tokenKey);
+      localStorage.removeItem(emailKey);
+      const store = remember ? localStorage : sessionStorage;
+      store.setItem(tokenKey, data.token);
+      store.setItem(emailKey, data.email);
+      if (remember) localStorage.setItem(savedEmailKey, data.email);
+      else localStorage.removeItem(savedEmailKey);
+      try {
+        await unlockOrCreateVault(data, password || pendingPassword);
+      } catch (err) {
+        clearDEK();
+        $("auth-err").textContent = "Signed in, but the vault key could not be unlocked. Try signing in again.";
+      }
+      pendingPassword = "";
       showDrive();
     }
 
-    $("register").onclick = () => sendAuth("/v1/auth/register");
-    $("login").onclick = () => sendAuth("/v1/auth/login");
+    function clearAuthForm() {
+      ["email", "password", "forgot-email", "code", "new-password"].forEach((id) => {
+        $(id).value = "";
+      });
+      pendingEmail = "";
+      $("password").setAttribute("autocomplete", "off");
+    }
+
+    function codeHint(data) {
+      const extra = data.delivery === "log"
+        ? " If this machine is not sending mail yet, the code is also in the Mini Cloud server window."
+        : "";
+      $("auth-ok").textContent = (data.message || "Code sent.") + extra;
+    }
+
+    async function postAuth(path, body) {
+      clearAuthNotes();
+      const res = await fetch(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        $("auth-err").textContent = data.error || "Something went wrong";
+        return null;
+      }
+      return data;
+    }
+
+    async function submitAuth() {
+      const email = $("email").value.trim();
+      const password = $("password").value;
+      if (authMode === "signin") {
+        const data = await postAuth("/v1/auth/login", { email, password });
+        if (data) await saveSession(data, password);
+        return;
+      }
+      pendingPassword = password;
+      const data = await postAuth("/v1/auth/register/start", { email, password });
+      if (!data) return;
+      pendingEmail = email;
+      codePurpose = "register";
+      $("code").value = "";
+      setAuthMode("code");
+      codeHint(data);
+    }
+
+    $("tab-signin").onclick = () => setAuthMode("signin", true);
+    $("tab-signup").onclick = () => setAuthMode("signup");
+    $("auth-submit").onclick = submitAuth;
+    $("forgot-open").onclick = () => setAuthMode("forgot");
+    $("forgot-back").onclick = () => setAuthMode("signin", true);
+    $("forgot-send").onclick = async () => {
+      const email = $("forgot-email").value.trim();
+      const data = await postAuth("/v1/auth/forgot", { email });
+      if (!data) return;
+      pendingEmail = email;
+      codePurpose = "reset";
+      $("code").value = "";
+      $("new-password").value = "";
+      setAuthMode("code");
+      codeHint(data);
+    };
+    $("code-back").onclick = () => setAuthMode(codePurpose === "reset" ? "forgot" : "signup", true);
+    $("code-resend").onclick = async () => {
+      const data = await postAuth("/v1/auth/resend", { email: pendingEmail, purpose: codePurpose });
+      if (data) codeHint(data);
+    };
+    $("code-submit").onclick = async () => {
+      if (codePurpose === "reset") {
+        const data = await postAuth("/v1/auth/reset", {
+          email: pendingEmail,
+          code: $("code").value.trim(),
+          password: $("new-password").value,
+        });
+        if (data) await saveSession(data, $("new-password").value);
+        return;
+      }
+      const data = await postAuth("/v1/auth/register/verify", {
+        email: pendingEmail,
+        code: $("code").value.trim(),
+      });
+      if (data) await saveSession(data, pendingPassword);
+    };
+    $("email").addEventListener("keydown", (e) => { if (e.key === "Enter") submitAuth(); });
+    $("password").addEventListener("keydown", (e) => { if (e.key === "Enter") submitAuth(); });
+    $("code").addEventListener("keydown", (e) => { if (e.key === "Enter") $("code-submit").click(); });
+    $("new-password").addEventListener("keydown", (e) => { if (e.key === "Enter") $("code-submit").click(); });
+    $("forgot-email").addEventListener("keydown", (e) => { if (e.key === "Enter") $("forgot-send").click(); });
     $("logout").onclick = () => {
+      sessionStorage.removeItem(tokenKey);
+      sessionStorage.removeItem(emailKey);
       localStorage.removeItem(tokenKey);
       localStorage.removeItem(emailKey);
+      clearDEK();
+      pendingPassword = "";
       currentPrefix = "";
       showAuth();
     };
-
-    function openFolderForm() {
-      $("drive-err").textContent = "";
-      $("folder-form").classList.remove("hidden");
-      $("folder-name").value = "";
-      $("folder-name").focus();
-    }
-
-    function closeFolderForm() {
-      $("folder-form").classList.add("hidden");
-      $("folder-name").value = "";
-    }
-
-    function createFolder(raw) {
-      const name = (raw || "").trim();
-      if (!name) {
-        $("drive-err").textContent = "Type a folder name first";
-        return;
-      }
-      if (name.includes("/") || name.includes("..") || name.includes("\\")) {
-        $("drive-err").textContent = "Use a simple name, no slashes";
-        return;
-      }
-      rememberFolder(currentPrefix + name + "/");
-      closeFolderForm();
-      refresh();
-    }
-
-    $("new-folder").onclick = openFolderForm;
-    $("folder-cancel").onclick = closeFolderForm;
-    $("folder-form").onsubmit = (e) => {
-      e.preventDefault();
-      createFolder($("folder-name").value);
+    $("pfp").onclick = (e) => { e.stopPropagation(); toggleAccountMenu(); };
+    $("open-settings").onclick = openSettings;
+    $("settings-back").onclick = closeSettings;
+    $("open-notifications").onclick = openNotifications;
+    $("notifications-back").onclick = closeSettings;
+    $("mark-all-read").onclick = async () => {
+      await fetch("/v1/notifications/read-all", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token() },
+      });
+      loadNotifications();
+      loadProfile();
     };
-
-    async function uploadFile(file) {
-      $("drive-err").textContent = "";
-      const key = currentPrefix + file.name;
-      $("drop").querySelector("strong").textContent = "Uploading " + file.name + "…";
-      const res = await fetch("/v1/objects/" + encodeURIComponent(key), {
+    function closeDeleteAccount() {
+      $("delete-account-modal").classList.add("hidden");
+      $("delete-confirm-text").value = "";
+      $("delete-account-go").disabled = true;
+      $("delete-account-err").textContent = "";
+    }
+    function syncDeleteConfirm() {
+      $("delete-account-go").disabled = $("delete-confirm-text").value.trim() !== "DELETE";
+    }
+    $("delete-account").onclick = () => {
+      $("delete-account-err").textContent = "";
+      $("delete-confirm-text").value = "";
+      $("delete-account-go").disabled = true;
+      $("delete-account-modal").classList.remove("hidden");
+      $("delete-confirm-text").focus();
+    };
+    $("delete-account-cancel").onclick = closeDeleteAccount;
+    $("delete-confirm-text").addEventListener("input", syncDeleteConfirm);
+    $("delete-confirm-text").addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !$("delete-account-go").disabled) $("delete-account-go").click();
+    });
+    $("delete-account-go").onclick = async () => {
+      if ($("delete-confirm-text").value.trim() !== "DELETE") return;
+      $("delete-account-go").disabled = true;
+      const res = await fetch("/v1/me", {
+        method: "DELETE",
+        headers: { Authorization: "Bearer " + token() },
+      });
+      if (!res.ok && res.status !== 204) {
+        $("delete-account-err").textContent = "Could not delete the account. Try again.";
+        $("delete-account-go").disabled = false;
+        return;
+      }
+      closeDeleteAccount();
+      $("logout").click();
+    };
+    $("avatar-pick").onclick = () => $("avatar-file").click();
+    $("avatar-file").onchange = async () => {
+      const file = $("avatar-file").files[0];
+      $("avatar-file").value = "";
+      if (!file) return;
+      $("profile-err").textContent = "";
+      const res = await fetch("/v1/me/avatar", {
         method: "PUT",
         headers: { Authorization: "Bearer " + token() },
         body: file,
       });
-      $("drop").querySelector("strong").textContent = "Drop a file here";
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        $("drive-err").textContent = data.error || "Upload failed";
+        $("profile-err").textContent = data.error || "Could not save photo";
         return;
       }
-      $("file").value = "";
-      refresh();
-    }
-
-    $("drop").onclick = () => $("file").click();
-    $("drop").onkeydown = (e) => {
-      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("file").click(); }
+      applyProfile(data);
+      $("profile-ok").textContent = "Photo updated.";
     };
-    $("file").onchange = () => {
-      if ($("file").files[0]) uploadFile($("file").files[0]);
-    };
-    ["dragenter", "dragover"].forEach((ev) => {
-      $("drop").addEventListener(ev, (e) => {
-        e.preventDefault();
-        $("drop").classList.add("over");
-      });
-    });
-    ["dragleave", "drop"].forEach((ev) => {
-      $("drop").addEventListener(ev, (e) => {
-        e.preventDefault();
-        $("drop").classList.remove("over");
-      });
-    });
-    $("drop").addEventListener("drop", (e) => {
-      const from = e.dataTransfer.getData(MOVE_TYPE) || e.dataTransfer.getData("text/plain");
-      if (from && !e.dataTransfer.files.length) {
-        moveFile(from, currentPrefix);
-        return;
-      }
-      const file = e.dataTransfer.files[0];
-      if (file) uploadFile(file);
-    });
-
-    async function download(key) {
-      const r = await fetch("/v1/objects/" + encodeURIComponent(key), {
+    $("avatar-remove").onclick = async () => {
+      const res = await fetch("/v1/me/avatar", {
+        method: "DELETE",
         headers: { Authorization: "Bearer " + token() },
       });
-      const blob = await r.blob();
-      const url = URL.createObjectURL(blob);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        $("profile-err").textContent = data.error || "Could not remove photo";
+        return;
+      }
+      applyProfile(Object.assign(data, { has_avatar: false }));
+      $("profile-ok").textContent = "Photo removed.";
+    };
+    $("theme-dark").onclick = () => { profile.theme = "dark"; applyProfile(profile); };
+    $("theme-light").onclick = () => { profile.theme = "light"; applyProfile(profile); };
+    $("profile-save").onclick = saveProfile;
+    $("convert-to").onchange = syncConvertTo;
+    $("convert-go").onclick = runConvert;
+    $("convert-close").onclick = closeConvert;
+    $("convert-modal").addEventListener("click", (e) => {
+      if (e.target.id === "convert-modal") closeConvert();
+    });
+    document.addEventListener("click", (e) => {
+      if (!$("who-bar").contains(e.target)) closeAccountMenu();
+    });
+    $("view-list").onclick = () => setView("list");
+    $("view-grid").onclick = () => setView("grid");
+    function openFolderForm(kind) {
+      folderIntent = kind;
+      $("drive-err").textContent = "";
+      $("folder-form").classList.remove("hidden");
+      $("folder-name").value = "";
+      $("folder-name").placeholder = kind === "shared"
+        ? "Shared folder name, e.g. team files"
+        : "Folder name, e.g. photos";
+      $("folder-name").focus();
+    }
+    $("new-folder").onclick = () => openFolderForm("normal");
+    $("new-shared").onclick = () => openFolderForm("shared");
+    $("folder-cancel").onclick = () => $("folder-form").classList.add("hidden");
+    $("folder-form").onsubmit = async (e) => {
+      e.preventDefault();
+      const name = ($("folder-name").value || "").trim();
+      if (!name || name.includes("/") || name.includes("..") || name.includes("\\")) {
+        $("drive-err").textContent = name ? "Use a simple name, no slashes" : "Type a folder name first";
+        return;
+      }
+      $("folder-form").classList.add("hidden");
+      if (folderIntent === "shared") {
+        const res = await fetch("/v1/collab/folders", {
+          method: "POST",
+          headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
+          body: JSON.stringify({ name }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          $("drive-err").textContent = data.error || "Could not create shared folder";
+          return;
+        }
+        openShare(data);
+        return;
+      }
+      if (currentShare) {
+        const res = await fetch("/v1/collab/folders/" + currentShare.id + "/folders", {
+          method: "POST",
+          headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
+          body: JSON.stringify({ prefix: currentPrefix + name + "/" }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          $("drive-err").textContent = data.error || "Could not create folder";
+          return;
+        }
+        refresh();
+        return;
+      }
+      rememberFolder(currentPrefix + name + "/");
+      refresh();
+    };
+    $("invite-form").onsubmit = async (e) => {
+      e.preventDefault();
+      if (!currentShare) return;
+      $("drive-err").textContent = "";
+      const email = $("invite-email").value.trim();
+      const res = await fetch("/v1/collab/folders/" + currentShare.id + "/invites", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        $("drive-err").textContent = data.error || "Could not invite";
+        return;
+      }
+      $("invite-email").value = "";
+      $("share-banner").classList.remove("hidden");
+      $("share-banner").textContent = email + " will see the invite the next time they open Mini Cloud.";
+      loadCollabMembers();
+    };
+
+    $("compress-on").onchange = syncCompressUI;
+    $("mode-lossy").onchange = syncCompressUI;
+    $("mode-lossless").onchange = syncCompressUI;
+    $("quality").oninput = scheduleEstimate;
+    $("upload-cancel").onclick = closeUploadModal;
+    $("upload-go").onclick = confirmUpload;
+    function closeConfirm() {
+      $("confirm-modal").classList.add("hidden");
+      $("confirm-ok").onclick = null;
+    }
+    $("confirm-cancel").onclick = closeConfirm;
+    $("confirm-modal").addEventListener("click", (e) => {
+      if (e.target.id === "confirm-modal") closeConfirm();
+    });
+
+    function askConfirm(title, text, okLabel, onConfirm) {
+      $("confirm-title").textContent = title;
+      $("confirm-text").textContent = text;
+      $("confirm-ok").textContent = okLabel;
+      $("confirm-modal").classList.remove("hidden");
+      $("confirm-ok").onclick = async () => {
+        closeConfirm();
+        await onConfirm();
+      };
+    }
+    $("preview-close").onclick = closePreview;
+    $("preview-modal").addEventListener("click", (e) => {
+      if (e.target.id === "preview-modal") closePreview();
+    });
+
+    $("upload").onclick = () => $("file").click();
+    $("file").onchange = () => { if ($("file").files[0]) openUploadModal($("file").files[0]); };
+
+    function driveOpen() {
+      return $("drive") && !$("drive").classList.contains("hidden");
+    }
+    function isOsFileDrag(e) {
+      const types = [...(e.dataTransfer && e.dataTransfer.types) || []];
+      return types.includes("Files") && !types.includes(MOVE_TYPE);
+    }
+    function hidePageDrop() {
+      fileDragDepth = 0;
+      $("page-drop").classList.add("hidden");
+    }
+    let fileDragDepth = 0;
+    document.addEventListener("dragenter", (e) => {
+      if (!driveOpen() || !isOsFileDrag(e)) return;
+      e.preventDefault();
+      fileDragDepth += 1;
+      $("page-drop").classList.remove("hidden");
+    });
+    document.addEventListener("dragover", (e) => {
+      if (!isOsFileDrag(e)) return;
+      e.preventDefault();
+      if (driveOpen()) e.dataTransfer.dropEffect = "copy";
+    });
+    document.addEventListener("dragleave", (e) => {
+      if (!isOsFileDrag(e)) return;
+      fileDragDepth = Math.max(0, fileDragDepth - 1);
+      if (fileDragDepth === 0) $("page-drop").classList.add("hidden");
+    });
+    document.addEventListener("drop", (e) => {
+      if (!isOsFileDrag(e)) return;
+      e.preventDefault();
+      hidePageDrop();
+      if (!driveOpen()) return;
+      const file = e.dataTransfer.files[0];
+      if (file) openUploadModal(file);
+    });
+
+    function closePreview() {
+      $("preview-modal").classList.add("hidden");
+      $("preview-body").innerHTML = "";
+      if (previewURL) {
+        URL.revokeObjectURL(previewURL);
+        previewURL = null;
+      }
+    }
+
+    async function previewFile(f) {
+      $("preview-title").textContent = prettyName(f.key);
+      $("preview-body").textContent = "Opening…";
+      $("preview-modal").classList.remove("hidden");
+      $("preview-download").onclick = () => download(f.key);
+      const r = await fetch(fileAPI("objects", f.key), {
+        headers: { Authorization: "Bearer " + token() },
+      });
+      if (!r.ok) {
+        $("preview-body").textContent = "Could not open this file.";
+        return;
+      }
+      let bytes = new Uint8Array(await r.arrayBuffer());
+      if (isEncrypted(f)) {
+        try { bytes = await decryptDownload(bytes.buffer, f.enc_wrap); }
+        catch {
+          $("preview-body").textContent = "Could not decrypt this file. Sign in again to unlock the vault.";
+          return;
+        }
+      }
+      const blob = new Blob([bytes]);
+      if (previewURL) URL.revokeObjectURL(previewURL);
+      previewURL = URL.createObjectURL(blob);
+      const name = f.key.toLowerCase();
+      const body = $("preview-body");
+      body.innerHTML = "";
+      if (isImageKey(name) || blob.type.startsWith("image/")) {
+        const img = document.createElement("img");
+        img.src = previewURL;
+        img.alt = basename(f.key);
+        body.append(img);
+        return;
+      }
+      if (name.endsWith(".pdf") || blob.type === "application/pdf") {
+        const frame = document.createElement("iframe");
+        frame.src = previewURL;
+        body.append(frame);
+        return;
+      }
+      if (/\.(txt|md|json|csv|log|go|js|css|html|xml|gz)$/.test(name) || (blob.type && blob.type.startsWith("text/"))) {
+        if (name.endsWith(".gz")) {
+          body.textContent = "This is a compressed file. Use Download to save it.";
+          return;
+        }
+        const text = await blob.text();
+        const pre = document.createElement("pre");
+        pre.textContent = text.length > 200000 ? text.slice(0, 200000) + "\n\n…truncated" : text;
+        body.append(pre);
+        return;
+      }
+      body.textContent = "No preview for this file type. Use Download to save it to your computer.";
+    }
+
+    async function download(key) {
+      const f = fileByKey(key);
+      const r = await fetch(fileAPI("objects", key), {
+        headers: { Authorization: "Bearer " + token() },
+      });
+      let bytes = new Uint8Array(await r.arrayBuffer());
+      if (isEncrypted(f)) {
+        try { bytes = await decryptDownload(bytes.buffer, f.enc_wrap); }
+        catch {
+          $("drive-err").textContent = "Could not decrypt this file. Sign in again to unlock the vault.";
+          return;
+        }
+      }
+      const url = URL.createObjectURL(new Blob([bytes]));
       const link = document.createElement("a");
       link.href = url;
       link.download = key.split("/").pop();
@@ -568,12 +1959,13 @@
 
     async function shareFile(key) {
       $("drive-err").textContent = "";
-      const res = await fetch("/v1/shares", {
+      const f = fileByKey(key);
+      const shareURL = currentShare
+        ? "/v1/collab/folders/" + currentShare.id + "/shares"
+        : "/v1/shares";
+      const res = await fetch(shareURL, {
         method: "POST",
-        headers: {
-          Authorization: "Bearer " + token(),
-          "Content-Type": "application/json",
-        },
+        headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
         body: JSON.stringify({ key }),
       });
       const data = await res.json();
@@ -581,22 +1973,69 @@
         $("drive-err").textContent = data.error || "Could not create link";
         return;
       }
+      let url = data.url;
+      if (isEncrypted(f) && vaultDEK) {
+        try {
+          const fek = await unwrapBytes(vaultDEK, unb64(f.enc_wrap));
+          url += "#" + b64url(fek);
+        } catch {
+          $("drive-err").textContent = "Link created, but the unlock key could not be attached. Recipients will see ciphertext.";
+        }
+      }
       const banner = $("share-banner");
       banner.classList.remove("hidden");
       banner.innerHTML = "Anyone with this link can download for 24 hours: ";
       const a = document.createElement("a");
-      a.href = data.url;
-      a.textContent = data.url;
-      banner.append(a, " ");
+      a.href = url;
+      a.textContent = url;
       const copy = document.createElement("button");
       copy.type = "button";
       copy.className = "ghost small";
       copy.textContent = "Copy";
-      copy.onclick = async () => {
-        await navigator.clipboard.writeText(data.url);
-        copy.textContent = "Copied";
-      };
-      banner.append(copy);
+      copy.onclick = async () => { await navigator.clipboard.writeText(url); copy.textContent = "Copied"; };
+      banner.append(a, " ", copy);
+    }
+
+    function askDeleteFolder(name) {
+      const prefix = currentPrefix + name + "/";
+      askConfirm(
+        "Delete this folder?",
+        "Are you sure you want to delete “" + name + "” and every file inside it? This cannot be undone.",
+        "Delete folder",
+        async () => {
+          if (currentShare) {
+            await fetch("/v1/collab/folders/" + currentShare.id + "/folders/delete", {
+              method: "POST",
+              headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
+              body: JSON.stringify({ prefix }),
+            });
+            refresh();
+            return;
+          }
+          await fetch("/v1/folders/delete", {
+            method: "POST",
+            headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
+            body: JSON.stringify({ prefix }),
+          });
+          forgetFolder(prefix);
+          refresh();
+        },
+      );
+    }
+
+    function askDeleteFile(f) {
+      askConfirm(
+        "Delete this file?",
+        "Are you sure you want to delete “" + prettyName(f.key) + "”? This cannot be undone.",
+        "Delete file",
+        async () => {
+          await fetch(fileAPI("objects", f.key), {
+            method: "DELETE",
+            headers: { Authorization: "Bearer " + token() },
+          });
+          refresh();
+        },
+      );
     }
 
     function folderRow(name) {
@@ -605,7 +2044,9 @@
       const icon = document.createElement("div");
       icon.className = "icon folder";
       icon.textContent = "DIR";
+      icon.onclick = () => setPrefix(currentPrefix + name + "/");
       const mid = document.createElement("div");
+      mid.className = "mid";
       const title = document.createElement("div");
       title.className = "name";
       const open = document.createElement("button");
@@ -618,7 +2059,74 @@
       meta.className = "meta";
       meta.textContent = "Folder";
       mid.append(title, meta);
-      li.append(icon, mid);
+      const actions = document.createElement("div");
+      actions.className = "row-actions";
+      actions.append(iconBtn("trash", "Delete folder", "danger", (e) => {
+        e.stopPropagation();
+        askDeleteFolder(name);
+      }));
+      li.append(icon, mid, actions);
+      return li;
+    }
+
+    function sharedFolderRow(folder) {
+      const li = document.createElement("li");
+      const icon = document.createElement("div");
+      icon.className = "icon shared";
+      icon.innerHTML = ICONS.people;
+      icon.onclick = () => openShare(folder);
+      const mid = document.createElement("div");
+      mid.className = "mid";
+      const title = document.createElement("div");
+      title.className = "name";
+      const open = document.createElement("button");
+      open.type = "button";
+      open.className = "link";
+      open.textContent = folder.name;
+      open.onclick = () => openShare(folder);
+      title.append(open);
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.textContent = folder.role === "owner"
+        ? "Shared folder · you own this"
+        : "Shared folder · " + (folder.owner_email || "invited");
+      mid.append(title, meta);
+      const actions = document.createElement("div");
+      actions.className = "row-actions";
+      if (folder.role === "owner") {
+        actions.append(iconBtn("trash", "Delete shared folder", "danger", (e) => {
+          e.stopPropagation();
+          askConfirm(
+            "Delete this shared folder?",
+            "Everyone will lose access to “" + folder.name + "” and the files inside it.",
+            "Delete folder",
+            async () => {
+              await fetch("/v1/collab/folders/" + folder.id, {
+                method: "DELETE",
+                headers: { Authorization: "Bearer " + token() },
+              });
+              refresh();
+            },
+          );
+        }));
+      } else {
+        actions.append(iconBtn("trash", "Leave shared folder", "danger", (e) => {
+          e.stopPropagation();
+          askConfirm(
+            "Leave this shared folder?",
+            "You will lose access to “" + folder.name + "” until someone invites you again.",
+            "Leave",
+            async () => {
+              await fetch("/v1/collab/folders/" + folder.id + "/leave", {
+                method: "POST",
+                headers: { Authorization: "Bearer " + token() },
+              });
+              refresh();
+            },
+          );
+        }));
+      }
+      li.append(icon, mid, actions);
       return li;
     }
 
@@ -636,20 +2144,24 @@
       const icon = document.createElement("div");
       icon.className = "icon " + k.cls;
       icon.textContent = k.label;
-      if (f.has_thumb) {
+      icon.title = "Preview";
+      icon.onclick = () => previewFile(f);
+      if (f.has_thumb || isImageKey(f.key)) {
         const img = document.createElement("img");
         img.alt = "";
         icon.append(img);
-        fillThumb(f.key, img);
+        fillThumb(f, img);
       }
       const mid = document.createElement("div");
+      mid.className = "mid";
       const name = document.createElement("div");
       name.className = "name";
       const open = document.createElement("button");
       open.type = "button";
       open.className = "link";
-      open.textContent = f.key.slice(currentPrefix.length);
-      open.onclick = () => download(f.key);
+      open.title = prettyName(f.key);
+      open.textContent = prettyName(f.key);
+      open.onclick = () => previewFile(f);
       name.append(open);
       const meta = document.createElement("div");
       meta.className = "meta";
@@ -657,58 +2169,189 @@
       mid.append(name, meta);
       const actions = document.createElement("div");
       actions.className = "row-actions";
-      const share = document.createElement("button");
-      share.type = "button";
-      share.className = "ghost small";
-      share.textContent = "Share";
-      share.onclick = () => shareFile(f.key);
-      const del = document.createElement("button");
-      del.type = "button";
-      del.className = "danger";
-      del.textContent = "Delete";
-      del.onclick = async () => {
-        await fetch("/v1/objects/" + encodeURIComponent(f.key), {
-          method: "DELETE",
-          headers: { Authorization: "Bearer " + token() },
-        });
-        refresh();
-      };
-      actions.append(share, del);
+      const actionsList = [
+        iconBtn("share", "Share", "share", () => shareFile(f.key)),
+      ];
+      if (!isEncrypted(f)) {
+        actionsList.push(iconBtn("convert", "Convert", "convert", () => openConvert(f.key)));
+      }
+      actionsList.push(
+        iconBtn("download", "Download", "download", () => download(f.key)),
+        iconBtn("trash", "Delete", "danger", () => askDeleteFile(f)),
+      );
+      actions.append(...actionsList);
       li.append(icon, mid, actions);
       return li;
     }
 
-    async function refresh() {
-      const res = await fetch("/v1/objects", {
+    async function loadCollabMembers() {
+      if (!currentShare) return;
+      const res = await fetch("/v1/collab/folders/" + currentShare.id + "/members", {
         headers: { Authorization: "Bearer " + token() },
       });
-      if (res.status === 401) {
-        $("logout").click();
+      if (!res.ok) return;
+      const data = await res.json();
+      const names = (data.members || []).map((m) => m.display_name || m.email);
+      $("collab-name").textContent = currentShare.name;
+      $("collab-members").textContent = names.length
+        ? names.join(" · ")
+        : "Invite people by email";
+    }
+
+    async function loadNotifications() {
+      const res = await fetch("/v1/notifications", { headers: { Authorization: "Bearer " + token() } });
+      if (!res.ok) return;
+      const data = await res.json();
+      setUnreadBadge(data.unread_count || 0);
+      const box = $("notif-list");
+      box.innerHTML = "";
+      const items = data.notifications || [];
+      if (!items.length) {
+        box.innerHTML = "<p class='lead'>No notifications yet.</p>";
         return;
       }
-      const data = await res.json();
-      const files = data.files || [];
-      const total = files.reduce((s, f) => s + f.size, 0);
-      const view = splitListing(files, currentPrefix);
-      $("count").textContent = view.files.length + (view.files.length === 1 ? " file" : " files");
-      $("bytes").textContent = formatSize(total) + " used";
-      $("drop-hint").textContent = currentPrefix
-        ? "Uploads go into " + currentPrefix + " · drag a file onto a folder or All files to move it"
-        : "or click to choose · drag a file onto a folder to organize it";
-      renderCrumbs();
+      for (const n of items) {
+        const row = document.createElement("div");
+        row.className = "notif-item" + (n.unread ? " unread" : "");
+        const text = document.createElement("div");
+        const title = document.createElement("strong");
+        title.textContent = n.title;
+        const body = document.createElement("div");
+        body.className = "meta";
+        body.textContent = n.body;
+        text.append(title, body);
+        row.append(text);
+        if (n.kind === "invite" && n.invite_id) {
+          const actions = document.createElement("div");
+          actions.className = "actions";
+          const accept = document.createElement("button");
+          accept.type = "button";
+          accept.textContent = "Accept";
+          accept.onclick = async () => {
+            const done = await fetch("/v1/collab/invites/" + n.invite_id + "/accept", {
+              method: "POST",
+              headers: { Authorization: "Bearer " + token() },
+            });
+            const folder = await done.json().catch(() => ({}));
+            await fetch("/v1/notifications/" + n.id + "/read", {
+              method: "POST",
+              headers: { Authorization: "Bearer " + token() },
+            });
+            if (done.ok) {
+              closeSettings();
+              openShare(folder);
+            } else {
+              loadNotifications();
+            }
+            loadProfile();
+          };
+          const decline = document.createElement("button");
+          decline.type = "button";
+          decline.className = "ghost";
+          decline.textContent = "Decline";
+          decline.onclick = async () => {
+            await fetch("/v1/collab/invites/" + n.invite_id + "/decline", {
+              method: "POST",
+              headers: { Authorization: "Bearer " + token() },
+            });
+            loadNotifications();
+            loadProfile();
+          };
+          actions.append(accept, decline);
+          row.append(actions);
+        } else if (n.unread) {
+          const mark = document.createElement("button");
+          mark.type = "button";
+          mark.className = "ghost small";
+          mark.textContent = "Mark read";
+          mark.onclick = async () => {
+            await fetch("/v1/notifications/" + n.id + "/read", {
+              method: "POST",
+              headers: { Authorization: "Bearer " + token() },
+            });
+            loadNotifications();
+            loadProfile();
+          };
+          row.append(mark);
+        }
+        box.append(row);
+      }
+    }
 
+    async function refresh() {
+      const usageRes = await fetch("/v1/objects", { headers: { Authorization: "Bearer " + token() } });
+      if (usageRes.status === 401) { $("logout").click(); return; }
+      const usageData = await usageRes.json();
+      const used = (usageData.usage && usageData.usage.used) || 0;
+      const limit = (usageData.usage && usageData.usage.limit) || 5 * 1024 * 1024 * 1024;
+      $("usage-label").textContent = formatSize(used) + " / " + formatSize(limit) + " used";
+      $("usage-fill").style.width = Math.min(100, (used / limit) * 100) + "%";
+      $("collab-bar").classList.toggle("hidden", !currentShare);
+      $("new-shared").classList.toggle("hidden", !!currentShare);
+      if (currentShare) loadCollabMembers();
+
+      let files = [];
+      let extraPrefixes = [];
+      let shared = [];
+      if (currentShare) {
+        const res = await fetch("/v1/collab/folders/" + currentShare.id + "/objects", {
+          headers: { Authorization: "Bearer " + token() },
+        });
+        if (res.status === 404) {
+          currentShare = null;
+          return refresh();
+        }
+        const data = await res.json();
+        files = data.files || [];
+        extraPrefixes = data.prefixes || [];
+        if (data.folder) currentShare = data.folder;
+      } else {
+        files = usageData.files || [];
+        const sf = await fetch("/v1/collab/folders", { headers: { Authorization: "Bearer " + token() } });
+        if (sf.ok) {
+          const data = await sf.json();
+          shared = data.folders || [];
+        }
+      }
+      vaultFiles = files;
+      const view = splitListing(files, currentPrefix, currentShare ? extraPrefixes : null);
+      $("count").textContent = view.files.length + (view.files.length === 1 ? " file" : " files");
+      $("drop-hint").textContent = currentShare
+        ? "into " + currentShare.name + (currentPrefix ? " / " + currentPrefix.replace(/\/$/, "") : "")
+        : (currentPrefix ? "into " + currentPrefix.replace(/\/$/, "") : "into All files");
+      renderCrumbs();
+      setView(viewMode);
       const list = $("files");
       clearThumbs();
       list.innerHTML = "";
-      if (!view.folders.length && !view.files.length) {
-        list.innerHTML = "<li class='empty' style='display:block'>Nothing in this folder. Drop a file above.</li>";
+      const me = await fetch("/v1/me", { headers: { Authorization: "Bearer " + token() } });
+      if (me.ok) {
+        const mine = await me.json();
+        setUnreadBadge(mine.unread_count || 0);
+      }
+      const empty = !shared.length && !view.folders.length && !view.files.length;
+      if (empty) {
+        list.innerHTML = "<li class='empty' style='display:block;grid-column:1/-1'>Nothing here yet. Use Upload, New folder, or New shared folder.</li>";
         return;
       }
+      for (const folder of shared) list.append(sharedFolderRow(folder));
       for (const name of view.folders) list.append(folderRow(name));
       for (const f of view.files) list.append(fileRow(f));
     }
 
-    if (token()) showDrive();
+    paintIcon("view-list", "list");
+    paintIcon("view-grid", "grid");
+    paintIcon("upload", "upload");
+    paintIcon("new-folder", "folder");
+    paintIcon("new-shared", "people");
+    $("remember-me").checked = localStorage.getItem(rememberKey) === "1";
+    if (token()) {
+      vaultDEK = readStoredDEK();
+      showDrive();
+    }
+    else if (localStorage.getItem(rememberKey) === "1") {
+      $("email").value = localStorage.getItem(savedEmailKey) || "";
+    }
   </script>
 </body>
 </html>

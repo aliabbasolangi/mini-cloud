@@ -14,13 +14,23 @@ type Config struct {
 	HTTPAddr        string
 	BlobDir         string
 	ThumbDir        string
+	AvatarDir       string
 	DatabasePath    string
 	JWTSecret       string
 	JWTSecretSource string
 	MaxUploadBytes  int64
+	MaxStorageBytes int64
+	SMTPHost        string
+	SMTPPort        int
+	SMTPUser        string
+	SMTPPass        string
+	SMTPFrom        string
+	MailLog         bool
 }
 
 func Load() (Config, error) {
+	loadDotEnv(".env")
+
 	maxMB := envInt("MAX_UPLOAD_MB", 32)
 	if maxMB < 1 {
 		maxMB = 1
@@ -29,12 +39,38 @@ func Load() (Config, error) {
 		maxMB = 2048
 	}
 
+	storageGB := envInt("MAX_STORAGE_GB", 5)
+	if storageGB < 1 {
+		storageGB = 1
+	}
+	if storageGB > 1024 {
+		storageGB = 1024
+	}
+
+	smtpHost := strings.TrimSpace(os.Getenv("SMTP_HOST"))
+	smtpPort := envInt("SMTP_PORT", 587)
+	if smtpPort < 1 || smtpPort > 65535 {
+		smtpPort = 587
+	}
+
 	cfg := Config{
-		HTTPAddr:       env("HTTP_ADDR", "0.0.0.0:8080"),
-		BlobDir:        env("BLOB_DIR", "./data/blobs"),
-		ThumbDir:       env("THUMB_DIR", "./data/thumbs"),
-		DatabasePath:   env("DATABASE_PATH", "./data/minicloud.db"),
-		MaxUploadBytes: int64(maxMB) * 1024 * 1024,
+		HTTPAddr:        listenAddr(),
+		BlobDir:         env("BLOB_DIR", "./data/blobs"),
+		ThumbDir:        env("THUMB_DIR", "./data/thumbs"),
+		AvatarDir:       env("AVATAR_DIR", "./data/avatars"),
+		DatabasePath:    env("DATABASE_PATH", "./data/minicloud.db"),
+		MaxUploadBytes:  int64(maxMB) * 1024 * 1024,
+		MaxStorageBytes: int64(storageGB) * 1024 * 1024 * 1024,
+		SMTPHost:        smtpHost,
+		SMTPPort:        smtpPort,
+		SMTPUser:        os.Getenv("SMTP_USER"),
+		SMTPPass:        os.Getenv("SMTP_PASS"),
+		SMTPFrom:        env("SMTP_FROM", os.Getenv("SMTP_USER")),
+		MailLog:         envBool("MAIL_LOG", smtpHost == ""),
+	}
+	if strings.TrimSpace(cfg.SMTPPass) == "" {
+		cfg.SMTPHost = ""
+		cfg.MailLog = true
 	}
 
 	secret, source, err := resolveSecret(
@@ -81,6 +117,20 @@ func resolveSecret(fromEnv, filePath string) (secret, source string, err error) 
 	return s, filePath + " (created)", nil
 }
 
+// listenAddr prefers HTTP_ADDR, then PaaS PORT (Railway, Fly, Render), then 8080.
+func listenAddr() string {
+	if v := strings.TrimSpace(os.Getenv("HTTP_ADDR")); v != "" {
+		return v
+	}
+	if p := strings.TrimSpace(os.Getenv("PORT")); p != "" {
+		if strings.Contains(p, ":") {
+			return p
+		}
+		return "0.0.0.0:" + p
+	}
+	return "0.0.0.0:8080"
+}
+
 func env(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
@@ -98,4 +148,16 @@ func envInt(key string, fallback int) int {
 		return fallback
 	}
 	return n
+}
+
+func envBool(key string, fallback bool) bool {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv(key)))
+	switch v {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return fallback
+	}
 }

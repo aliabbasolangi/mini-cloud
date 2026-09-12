@@ -36,10 +36,16 @@ func (h objectHandlers) createShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, map[string]string{
+	obj, _ := h.catalog.ObjectByKey(r.Context(), userIDFrom(r.Context()), key)
+	encVer := 0
+	if obj != nil {
+		encVer = obj.EncVer
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{
 		"token":   share.Token,
 		"url":     publicShareURL(r, share.Token),
 		"expires": share.ExpiresAt.Format("2006-01-02T15:04:05Z"),
+		"enc_ver": encVer,
 	})
 }
 
@@ -55,6 +61,10 @@ func (h objectHandlers) revokeShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h objectHandlers) publicPage(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "web/share.html")
 }
 
 func (h objectHandlers) publicGet(w http.ResponseWriter, r *http.Request) {

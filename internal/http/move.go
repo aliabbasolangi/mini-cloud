@@ -17,12 +17,12 @@ func (h objectHandlers) move(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	from, ok := normalizeKey(req.From)
-	if !ok {
+	if !ok || catalog.IsCollabKey(from) {
 		writeError(w, http.StatusBadRequest, "bad source name")
 		return
 	}
 	to, ok := normalizeKey(req.To)
-	if !ok {
+	if !ok || catalog.IsCollabKey(to) {
 		writeError(w, http.StatusBadRequest, "bad destination name")
 		return
 	}

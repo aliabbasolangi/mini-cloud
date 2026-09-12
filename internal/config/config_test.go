@@ -60,4 +60,7 @@ func TestLoadDefaultAddr(t *testing.T) {
 	if cfg.MaxUploadBytes != 32*1024*1024 {
 		t.Fatalf("max %d", cfg.MaxUploadBytes)
 	}
+	if cfg.MaxStorageBytes != 5*1024*1024*1024 {
+		t.Fatalf("storage %d", cfg.MaxStorageBytes)
+	}
 }

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Shared file · Mini Cloud</title>
+  <style>
+    :root { color-scheme: dark; --bg: #14110e; --ink: #f2efe8; --muted: #b8b0a4; --accent: #d4a574; --card: #1e1a16; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; font: 16px/1.45 system-ui, sans-serif; background: var(--bg); color: var(--ink); padding: 24px; }
+    main { width: min(440px, 100%); background: var(--card); border-radius: 16px; padding: 28px; }
+    h1 { margin: 0 0 8px; font-size: 22px; }
+    p { margin: 0 0 16px; color: var(--muted); }
+    button { appearance: none; border: 0; border-radius: 10px; padding: 12px 16px; font-weight: 650; background: var(--accent); color: #1a140c; cursor: pointer; }
+    .err { color: #e8a0a0; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Shared file</h1>
+    <p id="status">Opening the link…</p>
+    <button type="button" id="save" hidden>Download</button>
+  </main>
+  <script>
+    function unb64url(s) {
+      s = (s || "").replace(/-/g, "+").replace(/_/g, "/");
+      while (s.length % 4) s += "=";
+      return Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+    }
+    async function decryptBody(buf, fek) {
+      const bytes = new Uint8Array(buf);
+      if (bytes.length < 29) throw new Error("truncated");
+      const iv = bytes.slice(0, 12);
+      const ct = bytes.slice(12);
+      const key = await crypto.subtle.importKey("raw", fek, "AES-GCM", false, ["decrypt"]);
+      return new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ct));
+    }
+    (async () => {
+      const status = document.getElementById("status");
+      const token = location.pathname.split("/").filter(Boolean).pop();
+      const fekPart = location.hash.replace(/^#/, "");
+      const res = await fetch("/s/" + encodeURIComponent(token) + "/raw");
+      if (!res.ok) {
+        status.className = "err";
+        status.textContent = res.status === 410 ? "This link has expired." : "This link is missing or the file is gone.";
+        return;
+      }
+      const name = (res.headers.get("Content-Disposition") || "").split("filename=")[1]?.replace(/"/g, "") || "download";
+      let bytes = new Uint8Array(await res.arrayBuffer());
+      if (fekPart) {
+        try { bytes = await decryptBody(bytes.buffer, unb64url(fekPart)); }
+        catch { status.className = "err"; status.textContent = "This link is missing its unlock key, or the key is wrong."; return; }
+      }
+      const blob = new Blob([bytes]);
+      const url = URL.createObjectURL(blob);
+      status.textContent = name;
+      const save = document.getElementById("save");
+      save.hidden = false;
+      save.onclick = () => {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = name;
+        a.click();
+      };
+    })();
+  </script>
+</body>
+</html>
