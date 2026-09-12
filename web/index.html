@@ -1551,13 +1551,17 @@
       $("auth-ok").textContent = (data.message || "Code sent.") + extra;
     }
 
+    let lastAuthStatus = 0;
+
     async function postAuth(path, body) {
       clearAuthNotes();
+      lastAuthStatus = 0;
       const res = await fetch(path, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
+      lastAuthStatus = res.status;
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         $("auth-err").textContent = data.error || "Something went wrong";
@@ -1566,22 +1570,50 @@
       return data;
     }
 
+    function openCodePane(email, purpose, data, alreadySent) {
+      pendingEmail = email;
+      codePurpose = purpose;
+      $("code").value = "";
+      if (purpose === "reset") $("new-password").value = "";
+      setAuthMode("code");
+      if (alreadySent) {
+        $("auth-err").textContent = "";
+        $("auth-ok").textContent = "A code is already on the way. Check your email, or wait a minute to resend.";
+        return;
+      }
+      codeHint(data || {});
+    }
+
+    async function withBusy(btn, label, fn) {
+      if (!btn || btn.disabled) return;
+      const prev = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = label;
+      try {
+        await fn();
+      } finally {
+        btn.disabled = false;
+        btn.textContent = prev;
+      }
+    }
+
     async function submitAuth() {
       const email = $("email").value.trim();
       const password = $("password").value;
-      if (authMode === "signin") {
-        const data = await postAuth("/v1/auth/login", { email, password });
-        if (data) await saveSession(data, password);
-        return;
-      }
-      pendingPassword = password;
-      const data = await postAuth("/v1/auth/register/start", { email, password });
-      if (!data) return;
-      pendingEmail = email;
-      codePurpose = "register";
-      $("code").value = "";
-      setAuthMode("code");
-      codeHint(data);
+      await withBusy($("auth-submit"), authMode === "signin" ? "Signing in…" : "Sending code…", async () => {
+        if (authMode === "signin") {
+          const data = await postAuth("/v1/auth/login", { email, password });
+          if (data) await saveSession(data, password);
+          return;
+        }
+        pendingPassword = password;
+        const data = await postAuth("/v1/auth/register/start", { email, password });
+        if (data) {
+          openCodePane(email, "register", data, false);
+          return;
+        }
+        if (lastAuthStatus === 429) openCodePane(email, "register", null, true);
+      });
     }
 
     $("tab-signin").onclick = () => setAuthMode("signin", true);
@@ -1591,19 +1623,21 @@
     $("forgot-back").onclick = () => setAuthMode("signin", true);
     $("forgot-send").onclick = async () => {
       const email = $("forgot-email").value.trim();
-      const data = await postAuth("/v1/auth/forgot", { email });
-      if (!data) return;
-      pendingEmail = email;
-      codePurpose = "reset";
-      $("code").value = "";
-      $("new-password").value = "";
-      setAuthMode("code");
-      codeHint(data);
+      await withBusy($("forgot-send"), "Sending code…", async () => {
+        const data = await postAuth("/v1/auth/forgot", { email });
+        if (data) {
+          openCodePane(email, "reset", data, false);
+          return;
+        }
+        if (lastAuthStatus === 429) openCodePane(email, "reset", null, true);
+      });
     };
     $("code-back").onclick = () => setAuthMode(codePurpose === "reset" ? "forgot" : "signup", true);
     $("code-resend").onclick = async () => {
-      const data = await postAuth("/v1/auth/resend", { email: pendingEmail, purpose: codePurpose });
-      if (data) codeHint(data);
+      await withBusy($("code-resend"), "Sending…", async () => {
+        const data = await postAuth("/v1/auth/resend", { email: pendingEmail, purpose: codePurpose });
+        if (data) codeHint(data);
+      });
     };
     $("code-submit").onclick = async () => {
       if (codePurpose === "reset") {

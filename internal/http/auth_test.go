@@ -3,6 +3,7 @@ package http
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -80,6 +81,33 @@ func TestRegisterNeedsEmailCode(t *testing.T) {
 	})
 	if login.Code != http.StatusOK {
 		t.Fatalf("login %d %s", login.Code, login.Body.String())
+	}
+}
+
+type failMail struct{}
+
+func (failMail) SendCode(string, string, string) error { return errors.New("smtp down") }
+func (failMail) Delivery() string                      { return "smtp" }
+
+func TestRegisterStartClearsCodeWhenMailFails(t *testing.T) {
+	h, _, _ := testAuth(t)
+	h.mail = failMail{}
+
+	first := postJSON(h.registerStart, map[string]string{
+		"email":    "ali@example.com",
+		"password": "password1",
+	})
+	if first.Code != http.StatusBadGateway {
+		t.Fatalf("mail fail %d %s", first.Code, first.Body.String())
+	}
+
+	h.mail = &memMail{}
+	retry := postJSON(h.registerStart, map[string]string{
+		"email":    "ali@example.com",
+		"password": "password1",
+	})
+	if retry.Code != http.StatusOK {
+		t.Fatalf("retry after mail fail should work, got %d %s", retry.Code, retry.Body.String())
 	}
 }
 

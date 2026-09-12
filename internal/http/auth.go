@@ -236,6 +236,7 @@ func (h authHandlers) issueCode(w http.ResponseWriter, r *http.Request, email, p
 		return err
 	}
 	if err := h.mail.SendCode(email, purpose, code); err != nil {
+		_ = h.catalog.DeleteEmailCode(r.Context(), email, purpose)
 		writeError(w, http.StatusBadGateway, "could not send the email. check SMTP settings")
 		return err
 	}

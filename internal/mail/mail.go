@@ -105,10 +105,7 @@ func (s smtpMailer) SendCode(to, purpose, code string) error {
 
 	addr := fmt.Sprintf("%s:%d", s.host, s.port)
 	auth := smtp.PlainAuth("", s.user, s.pass, s.host)
-	if s.port == 465 {
-		return sendImplicitTLS(addr, s.host, auth, fromAddr, to, []byte(msg))
-	}
-	return smtp.SendMail(addr, auth, fromAddr, []string{to}, []byte(msg))
+	return sendSMTP(addr, s.host, s.port, auth, fromAddr, to, []byte(msg))
 }
 
 func envelopeAddr(from string) string {
@@ -119,13 +116,22 @@ func envelopeAddr(from string) string {
 	return from
 }
 
-func sendImplicitTLS(addr, host string, auth smtp.Auth, from, to string, msg []byte) error {
-	dialer := &net.Dialer{Timeout: 15 * time.Second}
-	conn, err := tls.DialWithDialer(dialer, "tcp", addr, &tls.Config{ServerName: host, MinVersion: tls.VersionTLS12})
+const smtpTimeout = 15 * time.Second
+
+func sendSMTP(addr, host string, port int, auth smtp.Auth, from, to string, msg []byte) error {
+	dialer := &net.Dialer{Timeout: smtpTimeout}
+	var conn net.Conn
+	var err error
+	if port == 465 {
+		conn, err = tls.DialWithDialer(dialer, "tcp", addr, &tls.Config{ServerName: host, MinVersion: tls.VersionTLS12})
+	} else {
+		conn, err = dialer.Dial("tcp", addr)
+	}
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
+	_ = conn.SetDeadline(time.Now().Add(smtpTimeout))
 
 	client, err := smtp.NewClient(conn, host)
 	if err != nil {
@@ -133,6 +139,13 @@ func sendImplicitTLS(addr, host string, auth smtp.Auth, from, to string, msg []b
 	}
 	defer client.Close()
 
+	if port != 465 {
+		if ok, _ := client.Extension("STARTTLS"); ok {
+			if err := client.StartTLS(&tls.Config{ServerName: host, MinVersion: tls.VersionTLS12}); err != nil {
+				return err
+			}
+		}
+	}
 	if auth != nil {
 		if err := client.Auth(auth); err != nil {
 			return err
