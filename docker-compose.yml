@@ -1,0 +1,16 @@
+# Start this later, after Docker Desktop is installed.
+# This is the "catalog": names and owners, not the files themselves.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: minicloud
+      POSTGRES_PASSWORD: minicloud
+      POSTGRES_DB: minicloud
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

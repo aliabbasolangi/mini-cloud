@@ -1,0 +1,15 @@
+# Uploads, database, and the login secret — never put these on GitHub
+/data/
+
+# Local machine settings
+.env
+.env.local
+
+# Build leftovers
+*.exe
+*.test
+
+# OS junk
+Thumbs.db
+Desktop.ini
+.DS_Store

@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mini Cloud</title>
+  <style>
+    :root {
+      --bg: #12141a;
+      --bg-2: #1a1d26;
+      --card: #222632;
+      --ink: #f2efe8;
+      --muted: #9a958c;
+      --line: #323644;
+      --accent: #d4a574;
+      --accent-ink: #1a140c;
+      --danger: #e07a6a;
+      --ok: #8fbf9f;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(900px 420px at 10% -10%, #2a241c 0%, transparent 55%),
+        var(--bg);
+      font: 15px/1.5 "Segoe UI", "Helvetica Neue", sans-serif;
+    }
+    .shell { max-width: 820px; margin: 0 auto; padding: 28px 20px 64px; }
+    header.app {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .mark {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      background: var(--accent);
+      color: var(--accent-ink);
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      letter-spacing: -0.04em;
+    }
+    .brand h1 { margin: 0; font-size: 20px; letter-spacing: -0.03em; }
+    .brand span { color: var(--muted); font-size: 13px; }
+    .who {
+      color: var(--muted);
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    button {
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font: inherit;
+      cursor: pointer;
+      background: var(--accent);
+      color: var(--accent-ink);
+      font-weight: 600;
+    }
+    button:hover { filter: brightness(1.06); }
+    button.ghost {
+      background: transparent;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      font-weight: 500;
+    }
+    button.small {
+      padding: 6px 10px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    button.danger {
+      background: transparent;
+      color: var(--danger);
+      border: 1px solid #5a3330;
+      padding: 6px 10px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    button:disabled { opacity: 0.55; cursor: wait; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 28px;
+    }
+    .auth-wrap { max-width: 420px; margin: 48px auto 0; }
+    .auth-wrap h2 { margin: 0 0 6px; font-size: 22px; letter-spacing: -0.03em; }
+    .auth-wrap p.lead { color: var(--muted); margin: 0 0 22px; }
+    label { display: block; font-size: 12px; color: var(--muted); margin: 0 0 6px; }
+    input[type="email"], input[type="password"], input[type="text"] {
+      width: 100%;
+      padding: 11px 12px;
+      margin-bottom: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--bg-2);
+      color: var(--ink);
+      font: inherit;
+    }
+    input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .actions { display: flex; gap: 8px; margin-top: 4px; }
+    .err { color: var(--danger); min-height: 1.2em; margin: 12px 0 0; font-size: 13px; }
+    .drop {
+      border: 1px dashed #4a4450;
+      border-radius: 14px;
+      padding: 36px 20px;
+      text-align: center;
+      background: var(--bg-2);
+      color: var(--muted);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .drop:hover, .drop.over {
+      border-color: var(--accent);
+      background: #2a241c;
+      color: var(--ink);
+    }
+    .drop strong { display: block; color: var(--ink); font-size: 16px; margin-bottom: 4px; }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 18px 0 10px;
+      flex-wrap: wrap;
+    }
+    .crumbs { color: var(--muted); font-size: 13px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .crumbs button.link {
+      all: unset;
+      cursor: pointer;
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .stats { display: flex; gap: 18px; color: var(--muted); font-size: 13px; }
+    .files { list-style: none; padding: 0; margin: 0; }
+    .files li {
+      display: grid;
+      grid-template-columns: 48px 1fr auto;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 8px;
+      border-top: 1px solid var(--line);
+    }
+    .files li:first-child { border-top: 0; }
+    .files li.dragging { opacity: 0.4; }
+    .files li.drop-target,
+    .crumbs button.drop-target {
+      outline: 1px solid var(--accent);
+      background: #2a241c;
+    }
+    .crumbs button.drop-target { border-radius: 6px; padding: 2px 8px; }
+    .files li[draggable="true"] { cursor: grab; }
+    .row-actions { display: flex; gap: 8px; }
+    .icon {
+      width: 48px; height: 48px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      background: #2d3340;
+      color: var(--accent);
+      overflow: hidden;
+      position: relative;
+    }
+    .icon.img { background: #2a3328; color: var(--ok); }
+    .icon.doc { background: #332828; color: var(--danger); }
+    .icon.folder { background: #2a261c; color: var(--accent); }
+    .icon img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .name { font-weight: 600; color: var(--ink); }
+    .name button.link {
+      all: unset;
+      cursor: pointer;
+      color: var(--ink);
+      font-weight: 600;
+    }
+    .name button.link:hover { color: var(--accent); }
+    .meta { color: var(--muted); font-size: 12px; }
+    .empty {
+      text-align: center;
+      color: var(--muted);
+      padding: 28px 8px 8px;
+    }
+    .banner {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: #2a241c;
+      border: 1px solid #4a3d2c;
+      font-size: 13px;
+      word-break: break-all;
+    }
+    .banner a { color: var(--accent); }
+    .folder-form {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin: 0 0 12px;
+    }
+    .folder-form input {
+      flex: 1;
+      margin: 0;
+      max-width: 280px;
+    }
+    .hidden { display: none; }
+    #file { display: none; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="app">
+      <div class="brand">
+        <div class="mark">M</div>
+        <div>
+          <h1>Mini Cloud</h1>
+          <span>Private files on this machine</span>
+        </div>
+      </div>
+      <div class="who hidden" id="who-bar">
+        <span id="who"></span>
+        <button type="button" class="ghost" id="logout">Log out</button>
+      </div>
+    </header>
+
+    <section id="auth" class="auth-wrap card">
+      <h2>Sign in to your vault</h2>
+      <p class="lead">Create an account or log in. Files stay on this computer, under names you choose.</p>
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="username" placeholder="you@example.com" />
+      <label for="password">Password (8+ characters)</label>
+      <input id="password" type="password" autocomplete="current-password" />
+      <div class="actions">
+        <button type="button" id="register">Create account</button>
+        <button type="button" class="ghost" id="login">Log in</button>
+      </div>
+      <p class="err" id="auth-err"></p>
+    </section>
+
+    <section id="drive" class="hidden">
+      <div class="drop" id="drop" role="button" tabindex="0">
+        <strong>Drop a file here</strong>
+        <span id="drop-hint">or click to choose one from your computer</span>
+      </div>
+      <input id="file" type="file" />
+      <p class="err" id="drive-err"></p>
+      <div id="share-banner" class="banner hidden"></div>
+      <form id="folder-form" class="folder-form hidden">
+        <input id="folder-name" type="text" maxlength="80" placeholder="Folder name, e.g. photos" autocomplete="off" />
+        <button type="submit">Create</button>
+        <button type="button" class="ghost small" id="folder-cancel">Cancel</button>
+      </form>
+      <div class="toolbar">
+        <div class="crumbs" id="crumbs"></div>
+        <div class="stats">
+          <span id="count">0 files</span>
+          <span id="bytes">0 B used</span>
+          <button type="button" class="ghost small" id="new-folder">New folder</button>
+        </div>
+      </div>
+      <ul class="files card" id="files"></ul>
+    </section>
+  </div>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const tokenKey = "minicloud.token";
+    const emailKey = "minicloud.email";
+    const token = () => localStorage.getItem(tokenKey);
+    let thumbURLs = [];
+    let currentPrefix = "";
+
+    function clearThumbs() {
+      for (const u of thumbURLs) URL.revokeObjectURL(u);
+      thumbURLs = [];
+    }
+
+    async function fillThumb(key, img) {
+      const r = await fetch("/v1/thumbs/" + encodeURIComponent(key), {
+        headers: { Authorization: "Bearer " + token() },
+      });
+      if (!r.ok) return;
+      const url = URL.createObjectURL(await r.blob());
+      thumbURLs.push(url);
+      img.src = url;
+    }
+
+    function formatSize(n) {
+      if (n < 1024) return n + " B";
+      if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
+      return (n / (1024 * 1024)).toFixed(1) + " MB";
+    }
+
+    function kind(name) {
+      const ext = (name.split(".").pop() || "").toLowerCase();
+      if (["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext)) return { cls: "img", label: "IMG" };
+      if (["pdf", "doc", "docx", "txt", "md"].includes(ext)) return { cls: "doc", label: ext.toUpperCase().slice(0, 3) };
+      return { cls: "", label: (ext || "FILE").toUpperCase().slice(0, 4) };
+    }
+
+    function folderStoreKey() {
+      return "minicloud.folders:" + (localStorage.getItem(emailKey) || "");
+    }
+
+    function rememberedFolders() {
+      try {
+        return JSON.parse(localStorage.getItem(folderStoreKey()) || "[]");
+      } catch {
+        return [];
+      }
+    }
+
+    function rememberFolder(prefix) {
+      const all = new Set(rememberedFolders());
+      all.add(prefix);
+      localStorage.setItem(folderStoreKey(), JSON.stringify([...all]));
+    }
+
+    function splitListing(files, prefix) {
+      const folders = new Set();
+      const here = [];
+      for (const f of files) {
+        if (!f.key.startsWith(prefix)) continue;
+        const rest = f.key.slice(prefix.length);
+        const slash = rest.indexOf("/");
+        if (slash === -1) {
+          if (rest) here.push(f);
+        } else {
+          folders.add(rest.slice(0, slash));
+        }
+      }
+      for (const saved of rememberedFolders()) {
+        if (!saved.startsWith(prefix)) continue;
+        const rest = saved.slice(prefix.length).replace(/\/$/, "");
+        if (rest && !rest.includes("/")) folders.add(rest);
+      }
+      return { folders: [...folders].sort(), files: here };
+    }
+
+    function setPrefix(prefix) {
+      currentPrefix = prefix;
+      refresh();
+    }
+
+    const MOVE_TYPE = "application/x-minicloud-key";
+
+    function basename(key) {
+      return key.split("/").pop();
+    }
+
+    async function moveFile(from, destPrefix) {
+      const to = destPrefix + basename(from);
+      if (to === from) return;
+      $("drive-err").textContent = "";
+      const res = await fetch("/v1/move", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + token(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ from, to }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        $("drive-err").textContent = data.error || "Could not move file";
+        return;
+      }
+      refresh();
+    }
+
+    function enableMoveDrop(el, destPrefix) {
+      el.addEventListener("dragover", (e) => {
+        if (![...e.dataTransfer.types].includes(MOVE_TYPE) &&
+            ![...e.dataTransfer.types].includes("text/plain")) {
+          return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = "move";
+        el.classList.add("drop-target");
+      });
+      el.addEventListener("dragleave", () => el.classList.remove("drop-target"));
+      el.addEventListener("drop", (e) => {
+        el.classList.remove("drop-target");
+        const from = e.dataTransfer.getData(MOVE_TYPE) || e.dataTransfer.getData("text/plain");
+        if (!from || e.dataTransfer.files.length) return;
+        e.preventDefault();
+        e.stopPropagation();
+        moveFile(from, destPrefix);
+      });
+    }
+
+    function renderCrumbs() {
+      const el = $("crumbs");
+      el.innerHTML = "";
+      const home = document.createElement("button");
+      home.type = "button";
+      home.className = "link";
+      home.textContent = "All files";
+      home.onclick = () => setPrefix("");
+      enableMoveDrop(home, "");
+      el.append(home);
+      if (!currentPrefix) return;
+      const parts = currentPrefix.replace(/\/$/, "").split("/");
+      let walk = "";
+      for (const part of parts) {
+        walk += part + "/";
+        el.append(document.createTextNode(" / "));
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "link";
+        b.textContent = part;
+        const target = walk;
+        b.onclick = () => setPrefix(target);
+        enableMoveDrop(b, target);
+        el.append(b);
+      }
+    }
+
+    function showDrive() {
+      $("auth").classList.add("hidden");
+      $("drive").classList.remove("hidden");
+      $("who-bar").classList.remove("hidden");
+      $("who").textContent = localStorage.getItem(emailKey);
+      refresh();
+    }
+
+    function showAuth() {
+      $("drive").classList.add("hidden");
+      $("who-bar").classList.add("hidden");
+      $("auth").classList.remove("hidden");
+    }
+
+    async function sendAuth(path) {
+      $("auth-err").textContent = "";
+      const res = await fetch(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: $("email").value, password: $("password").value }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        $("auth-err").textContent = data.error || "Something went wrong";
+        return;
+      }
+      localStorage.setItem(tokenKey, data.token);
+      localStorage.setItem(emailKey, data.email);
+      showDrive();
+    }
+
+    $("register").onclick = () => sendAuth("/v1/auth/register");
+    $("login").onclick = () => sendAuth("/v1/auth/login");
+    $("logout").onclick = () => {
+      localStorage.removeItem(tokenKey);
+      localStorage.removeItem(emailKey);
+      currentPrefix = "";
+      showAuth();
+    };
+
+    function openFolderForm() {
+      $("drive-err").textContent = "";
+      $("folder-form").classList.remove("hidden");
+      $("folder-name").value = "";
+      $("folder-name").focus();
+    }
+
+    function closeFolderForm() {
+      $("folder-form").classList.add("hidden");
+      $("folder-name").value = "";
+    }
+
+    function createFolder(raw) {
+      const name = (raw || "").trim();
+      if (!name) {
+        $("drive-err").textContent = "Type a folder name first";
+        return;
+      }
+      if (name.includes("/") || name.includes("..") || name.includes("\\")) {
+        $("drive-err").textContent = "Use a simple name, no slashes";
+        return;
+      }
+      rememberFolder(currentPrefix + name + "/");
+      closeFolderForm();
+      refresh();
+    }
+
+    $("new-folder").onclick = openFolderForm;
+    $("folder-cancel").onclick = closeFolderForm;
+    $("folder-form").onsubmit = (e) => {
+      e.preventDefault();
+      createFolder($("folder-name").value);
+    };
+
+    async function uploadFile(file) {
+      $("drive-err").textContent = "";
+      const key = currentPrefix + file.name;
+      $("drop").querySelector("strong").textContent = "Uploading " + file.name + "…";
+      const res = await fetch("/v1/objects/" + encodeURIComponent(key), {
+        method: "PUT",
+        headers: { Authorization: "Bearer " + token() },
+        body: file,
+      });
+      $("drop").querySelector("strong").textContent = "Drop a file here";
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        $("drive-err").textContent = data.error || "Upload failed";
+        return;
+      }
+      $("file").value = "";
+      refresh();
+    }
+
+    $("drop").onclick = () => $("file").click();
+    $("drop").onkeydown = (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("file").click(); }
+    };
+    $("file").onchange = () => {
+      if ($("file").files[0]) uploadFile($("file").files[0]);
+    };
+    ["dragenter", "dragover"].forEach((ev) => {
+      $("drop").addEventListener(ev, (e) => {
+        e.preventDefault();
+        $("drop").classList.add("over");
+      });
+    });
+    ["dragleave", "drop"].forEach((ev) => {
+      $("drop").addEventListener(ev, (e) => {
+        e.preventDefault();
+        $("drop").classList.remove("over");
+      });
+    });
+    $("drop").addEventListener("drop", (e) => {
+      const from = e.dataTransfer.getData(MOVE_TYPE) || e.dataTransfer.getData("text/plain");
+      if (from && !e.dataTransfer.files.length) {
+        moveFile(from, currentPrefix);
+        return;
+      }
+      const file = e.dataTransfer.files[0];
+      if (file) uploadFile(file);
+    });
+
+    async function download(key) {
+      const r = await fetch("/v1/objects/" + encodeURIComponent(key), {
+        headers: { Authorization: "Bearer " + token() },
+      });
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = key.split("/").pop();
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function shareFile(key) {
+      $("drive-err").textContent = "";
+      const res = await fetch("/v1/shares", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + token(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ key }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        $("drive-err").textContent = data.error || "Could not create link";
+        return;
+      }
+      const banner = $("share-banner");
+      banner.classList.remove("hidden");
+      banner.innerHTML = "Anyone with this link can download for 24 hours: ";
+      const a = document.createElement("a");
+      a.href = data.url;
+      a.textContent = data.url;
+      banner.append(a, " ");
+      const copy = document.createElement("button");
+      copy.type = "button";
+      copy.className = "ghost small";
+      copy.textContent = "Copy";
+      copy.onclick = async () => {
+        await navigator.clipboard.writeText(data.url);
+        copy.textContent = "Copied";
+      };
+      banner.append(copy);
+    }
+
+    function folderRow(name) {
+      const li = document.createElement("li");
+      enableMoveDrop(li, currentPrefix + name + "/");
+      const icon = document.createElement("div");
+      icon.className = "icon folder";
+      icon.textContent = "DIR";
+      const mid = document.createElement("div");
+      const title = document.createElement("div");
+      title.className = "name";
+      const open = document.createElement("button");
+      open.type = "button";
+      open.className = "link";
+      open.textContent = name;
+      open.onclick = () => setPrefix(currentPrefix + name + "/");
+      title.append(open);
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.textContent = "Folder";
+      mid.append(title, meta);
+      li.append(icon, mid);
+      return li;
+    }
+
+    function fileRow(f) {
+      const k = kind(f.key);
+      const li = document.createElement("li");
+      li.draggable = true;
+      li.addEventListener("dragstart", (e) => {
+        e.dataTransfer.setData(MOVE_TYPE, f.key);
+        e.dataTransfer.setData("text/plain", f.key);
+        e.dataTransfer.effectAllowed = "move";
+        li.classList.add("dragging");
+      });
+      li.addEventListener("dragend", () => li.classList.remove("dragging"));
+      const icon = document.createElement("div");
+      icon.className = "icon " + k.cls;
+      icon.textContent = k.label;
+      if (f.has_thumb) {
+        const img = document.createElement("img");
+        img.alt = "";
+        icon.append(img);
+        fillThumb(f.key, img);
+      }
+      const mid = document.createElement("div");
+      const name = document.createElement("div");
+      name.className = "name";
+      const open = document.createElement("button");
+      open.type = "button";
+      open.className = "link";
+      open.textContent = f.key.slice(currentPrefix.length);
+      open.onclick = () => download(f.key);
+      name.append(open);
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.textContent = formatSize(f.size) + (f.created ? " · " + f.created.slice(0, 10) : "");
+      mid.append(name, meta);
+      const actions = document.createElement("div");
+      actions.className = "row-actions";
+      const share = document.createElement("button");
+      share.type = "button";
+      share.className = "ghost small";
+      share.textContent = "Share";
+      share.onclick = () => shareFile(f.key);
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "danger";
+      del.textContent = "Delete";
+      del.onclick = async () => {
+        await fetch("/v1/objects/" + encodeURIComponent(f.key), {
+          method: "DELETE",
+          headers: { Authorization: "Bearer " + token() },
+        });
+        refresh();
+      };
+      actions.append(share, del);
+      li.append(icon, mid, actions);
+      return li;
+    }
+
+    async function refresh() {
+      const res = await fetch("/v1/objects", {
+        headers: { Authorization: "Bearer " + token() },
+      });
+      if (res.status === 401) {
+        $("logout").click();
+        return;
+      }
+      const data = await res.json();
+      const files = data.files || [];
+      const total = files.reduce((s, f) => s + f.size, 0);
+      const view = splitListing(files, currentPrefix);
+      $("count").textContent = view.files.length + (view.files.length === 1 ? " file" : " files");
+      $("bytes").textContent = formatSize(total) + " used";
+      $("drop-hint").textContent = currentPrefix
+        ? "Uploads go into " + currentPrefix + " · drag a file onto a folder or All files to move it"
+        : "or click to choose · drag a file onto a folder to organize it";
+      renderCrumbs();
+
+      const list = $("files");
+      clearThumbs();
+      list.innerHTML = "";
+      if (!view.folders.length && !view.files.length) {
+        list.innerHTML = "<li class='empty' style='display:block'>Nothing in this folder. Drop a file above.</li>";
+        return;
+      }
+      for (const name of view.folders) list.append(folderRow(name));
+      for (const f of view.files) list.append(fileRow(f));
+    }
+
+    if (token()) showDrive();
+  </script>
+</body>
+</html>
