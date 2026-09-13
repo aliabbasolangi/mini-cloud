@@ -15,32 +15,43 @@
     body {
       margin: 0; min-height: 100vh; display: grid; place-items: center;
       font: 16px/1.45 Outfit, sans-serif; color: var(--ink); padding: 24px;
-      background:
-        radial-gradient(720px 420px at 12% -10%, rgba(227, 194, 122, 0.16), transparent 55%),
-        var(--bg);
+      background: var(--bg);
     }
-    main { width: min(440px, 100%); background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 28px; }
+    .atmosphere { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+    .orb { position: absolute; border-radius: 50%; filter: blur(70px); opacity: .45; }
+    .orb-a { width: 380px; height: 380px; background: rgba(227,194,122,.28); top: -80px; left: -60px; }
+    .orb-b { width: 280px; height: 280px; background: rgba(70,130,112,.2); right: -70px; bottom: 10%; }
+    main {
+      width: min(440px, 100%); background: var(--card); border: 1px solid var(--line);
+      border-radius: 20px; padding: 28px; backdrop-filter: blur(16px);
+    }
     main.has-player { width: min(720px, 100%); }
     .brand { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; margin-bottom: 18px; }
-    .mark {
-      width: 32px; height: 32px; border-radius: 10px;
-      overflow: hidden; background: #0a0a0a; flex-shrink: 0;
-    }
+    .mark { width: 32px; height: 32px; border-radius: 10px; overflow: hidden; background: #0a0a0a; flex-shrink: 0; }
     .mark img { width: 100%; height: 100%; display: block; object-fit: cover; }
     h1 { margin: 0 0 8px; font: 650 24px/1.2 Fraunces, Georgia, serif; word-break: break-word; }
     p { margin: 0 0 16px; color: var(--muted); }
-    video, audio { width: 100%; display: block; border-radius: 12px; margin: 0 0 16px; background: #0a0a0a; }
-    audio { height: 48px; }
+    .player-stage { position: relative; background: #050807; border-radius: 12px; overflow: hidden; margin: 0 0 12px; }
+    video, audio { width: 100%; display: block; background: #0a0a0a; }
+    audio { height: 48px; border-radius: 12px; margin: 0 0 16px; }
+    .cue-layer { position: absolute; left: 8%; right: 8%; display: flex; justify-content: center; text-align: center; pointer-events: none; }
+    .pos-bottom { bottom: 14%; } .pos-middle { top: 50%; transform: translateY(-50%); } .pos-top { top: 10%; }
+    .cue-chip { display: none; padding: 4px 10px; border-radius: 6px; font: 560 18px/1.35 Fraunces, Georgia, serif; white-space: pre-line; }
+    .cue-chip.on { display: inline-block; }
+    .tools { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
     button { appearance: none; border: 0; border-radius: 10px; padding: 12px 16px; font-weight: 650; background: var(--accent); color: #1a1408; cursor: pointer; }
+    button.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+    .sub { margin: 0 0 16px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; display: none; grid-gap: 8px; }
+    .sub.on { display: grid; }
     .err { color: #e8a0a0; }
+    .hidden { display: none; }
   </style>
 </head>
 <body>
+  <div class="atmosphere" aria-hidden="true"><div class="orb orb-a"></div><div class="orb orb-b"></div></div>
   <main id="card">
     <div class="brand">
-      <div class="mark" aria-hidden="true">
-        <img src="/logo.png" alt="" />
-      </div>
+      <div class="mark" aria-hidden="true"><img src="/logo.png" alt="" /></div>
       SafeKeeping
     </div>
     <h1 id="title">Shared file</h1>
@@ -54,22 +65,40 @@
       while (s.length % 4) s += "=";
       return Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
     }
-    function fileExt(name) {
-      return (String(name || "").split(".").pop() || "").toLowerCase();
-    }
+    function fileExt(name) { return (String(name || "").split(".").pop() || "").toLowerCase(); }
     function mimeFor(name) {
       switch (fileExt(name)) {
-        case "mp4": return "video/mp4";
+        case "mp4": case "m4v": return "video/mp4";
         case "webm": return "video/webm";
         case "mov": return "video/quicktime";
         case "mp3": return "audio/mpeg";
         case "m4a": return "audio/mp4";
         case "wav": return "audio/wav";
-        case "ogg":
-        case "oga": return "audio/ogg";
+        case "ogg": case "oga": return "audio/ogg";
         case "pdf": return "application/pdf";
         default: return "application/octet-stream";
       }
+    }
+    function srtTime(raw) {
+      const s = String(raw || "").trim().replace(",", ".");
+      const p = s.split(":");
+      if (p.length === 2) return (+p[0] || 0) * 60 + parseFloat(p[1] || "0");
+      if (p.length >= 3) return (+p[0] || 0) * 3600 + (+p[1] || 0) * 60 + parseFloat(p[2] || "0");
+      return 0;
+    }
+    function parseSrt(text) {
+      text = String(text || "").replace(/^\uFEFF/, "").replace(/\r/g, "");
+      const cues = [];
+      for (const block of text.split(/\n{2,}/)) {
+        const lines = block.split("\n").filter((l) => l.trim() !== "");
+        if (!lines.length) continue;
+        let i = /^\d+$/.test(lines[0]) ? 1 : 0;
+        if (!/-->/.test(lines[i] || "")) continue;
+        const [a, b] = lines[i].split(/\s*-->\s*/);
+        const body = lines.slice(i + 1).join("\n").replace(/<[^>]+>/g, "");
+        if (body) cues.push({ start: srtTime(a), end: srtTime((b || "").split(/\s+/)[0]), text: body });
+      }
+      return cues;
     }
     async function decryptBody(buf, fek) {
       const bytes = new Uint8Array(buf);
@@ -96,34 +125,76 @@
         catch { status.className = "err"; status.textContent = "This link is missing its unlock key, or the key is wrong."; return; }
       }
       const type = mimeFor(name);
-      const blob = new Blob([bytes], { type: type });
-      const url = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(new Blob([bytes], { type }));
       document.getElementById("title").textContent = name;
       status.textContent = "Shared file";
       const ext = fileExt(name);
       const box = document.getElementById("player");
       if (type.startsWith("video/") || ext === "mp4") {
         document.getElementById("card").classList.add("has-player");
+        const stage = document.createElement("div");
+        stage.className = "player-stage";
         const video = document.createElement("video");
-        video.controls = true;
-        video.playsInline = true;
-        video.preload = "metadata";
-        video.src = url;
-        box.append(video);
+        video.controls = true; video.playsInline = true; video.src = url;
+        const layer = document.createElement("div");
+        layer.className = "cue-layer pos-bottom";
+        const chip = document.createElement("span");
+        chip.className = "cue-chip";
+        layer.append(chip);
+        stage.append(video, layer);
+        const tools = document.createElement("div");
+        tools.className = "tools";
+        const add = document.createElement("button");
+        add.className = "ghost"; add.textContent = "Add .srt";
+        const gear = document.createElement("button");
+        gear.className = "ghost"; gear.textContent = "Subtitle settings";
+        const input = document.createElement("input");
+        input.type = "file"; input.accept = ".srt,.vtt"; input.className = "hidden";
+        tools.append(add, gear);
+        const set = { size: 18, color: "#f6f1e6", bg: 0.55, pos: "bottom", delay: 0 };
+        try { Object.assign(set, JSON.parse(localStorage.getItem("minicloud.subs") || "{}")); } catch {}
+        const panel = document.createElement("div");
+        panel.className = "sub";
+        panel.innerHTML = "<label>Size</label><input id='ss' type='range' min='14' max='36'><label>Background</label><input id='sb' type='range' min='0' max='0.85' step='0.05'>";
+        let cues = [];
+        const paint = () => {
+          chip.style.fontSize = set.size + "px";
+          chip.style.color = set.color;
+          chip.style.background = "rgba(8,10,9," + set.bg + ")";
+          layer.className = "cue-layer pos-" + set.pos;
+          localStorage.setItem("minicloud.subs", JSON.stringify(set));
+        };
+        paint();
+        const tick = () => {
+          const t = video.currentTime + (Number(set.delay) || 0);
+          const hit = cues.find((c) => t >= c.start && t <= c.end);
+          chip.textContent = hit ? hit.text : "";
+          chip.classList.toggle("on", !!hit);
+          paint();
+          requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+        add.onclick = () => input.click();
+        gear.onclick = () => panel.classList.toggle("on");
+        input.onchange = async () => {
+          if (!input.files[0]) return;
+          cues = parseSrt(await input.files[0].text());
+        };
+        panel.querySelector("#ss").value = set.size;
+        panel.querySelector("#sb").value = set.bg;
+        panel.querySelector("#ss").oninput = (e) => { set.size = +e.target.value; };
+        panel.querySelector("#sb").oninput = (e) => { set.bg = +e.target.value; };
+        box.append(stage, tools, input, panel);
       } else if (type.startsWith("audio/") || ext === "mp3") {
         const audio = document.createElement("audio");
-        audio.controls = true;
-        audio.preload = "metadata";
-        audio.src = url;
+        audio.controls = true; audio.src = url;
         box.append(audio);
       }
       const save = document.getElementById("save");
       save.hidden = false;
       save.onclick = () => {
         const a = document.createElement("a");
-        a.href = url;
-        a.download = name;
-        a.click();
+        a.href = url; a.download = name; a.click();
       };
     })();
   </script>

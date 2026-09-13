@@ -42,16 +42,46 @@
     body {
       margin: 0;
       color: var(--ink);
-      background:
-        radial-gradient(900px 520px at 8% -12%, var(--glow), transparent 58%),
-        radial-gradient(720px 420px at 100% 0%, rgba(80, 140, 120, 0.16), transparent 52%),
-        linear-gradient(180deg, #0c1412 0%, var(--bg) 38%);
+      background: var(--bg);
       font: 15px/1.5 Outfit, "Segoe UI", sans-serif;
     }
-    :root.theme-light body {
-      background:
-        radial-gradient(900px 520px at 8% -12%, var(--glow), transparent 58%),
-        var(--bg);
+    .atmosphere {
+      position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;
+      background: linear-gradient(180deg, #0c1412 0%, var(--bg) 42%);
+    }
+    :root.theme-light .atmosphere {
+      background: var(--bg);
+    }
+    .atmosphere .orb {
+      position: absolute; border-radius: 50%; filter: blur(70px);
+      opacity: 0.5; animation: orb-drift 32s ease-in-out infinite alternate;
+    }
+    .orb-a { width: 460px; height: 460px; background: rgba(227, 194, 122, 0.26); top: -120px; left: -80px; }
+    .orb-b { width: 380px; height: 380px; background: rgba(70, 130, 112, 0.2); top: 18%; right: -90px; animation-delay: -10s; }
+    .orb-c { width: 300px; height: 300px; background: rgba(227, 194, 122, 0.12); bottom: -80px; left: 28%; animation-delay: -18s; }
+    .atmosphere .grid {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(227, 194, 122, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(227, 194, 122, 0.045) 1px, transparent 1px);
+      background-size: 56px 56px;
+      mask-image: radial-gradient(ellipse at 50% 0%, #000 12%, transparent 72%);
+    }
+    .atmosphere .grain {
+      position: absolute; inset: 0; opacity: 0.08;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+    @keyframes orb-drift {
+      from { transform: translate(0, 0) scale(1); }
+      to { transform: translate(36px, 22px) scale(1.08); }
+    }
+    @keyframes rise-in {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: none; }
+    }
+    @keyframes mark-glow {
+      0%, 100% { box-shadow: 0 8px 22px var(--glow); }
+      50% { box-shadow: 0 10px 30px rgba(227, 194, 122, 0.38); }
     }
     .shell { max-width: 980px; margin: 0 auto; padding: 28px 20px 64px; }
     header.app {
@@ -69,6 +99,7 @@
       background: #0a0a0a;
       box-shadow: 0 8px 22px var(--glow);
       flex-shrink: 0;
+      animation: mark-glow 5s ease-in-out infinite;
     }
     .mark img { width: 100%; height: 100%; display: block; object-fit: cover; }
     .brand h1 { margin: 0; font-size: 22px; letter-spacing: -0.04em; font-family: Fraunces, Georgia, serif; font-weight: 700; }
@@ -179,7 +210,17 @@
     button.icon-btn.share:hover, button.icon-btn.convert:hover { color: var(--accent); border-color: var(--accent); background: var(--hover); filter: none; }
     button.icon-btn.download:hover { color: var(--ok); border-color: var(--ok); background: #1c2a22; filter: none; }
     button.icon-btn.danger:hover { color: var(--danger); border-color: var(--danger); background: #2a1c1c; filter: none; }
-    .card { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 28px; backdrop-filter: blur(16px); }
+    .card {
+      background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 28px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 18px 50px rgba(0,0,0,0.18);
+      transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+    }
+    .files.list li { transition: background 0.2s ease; }
+    .files.list li:hover { background: var(--hover); }
+    .files.grid li { transition: transform 0.22s ease, border-color 0.22s ease; }
+    .files.grid li:hover { transform: translateY(-3px); border-color: var(--accent); }
+    .row-in { animation: rise-in 0.42s cubic-bezier(.2,.8,.2,1) both; }
     .auth-wrap {
       max-width: 440px; margin: 56px auto 0;
       box-shadow: 0 28px 80px rgba(0,0,0,0.38);
@@ -470,6 +511,41 @@
     }
     .theme-row { display: flex; gap: 8px; margin-bottom: 14px; }
     .ok { color: var(--ok); font-size: 13px; min-height: 1.2em; margin: 12px 0 0; }
+    .player-stage {
+      position: relative; background: #050807; border-radius: 12px; overflow: hidden;
+    }
+    .player-stage video { margin: 0; max-height: 55vh; min-height: 180px; }
+    .cue-layer {
+      position: absolute; left: 8%; right: 8%; pointer-events: none;
+      display: flex; justify-content: center; text-align: center;
+    }
+    .cue-layer.pos-bottom { bottom: 14%; }
+    .cue-layer.pos-middle { top: 50%; transform: translateY(-50%); }
+    .cue-layer.pos-top { top: 10%; }
+    .cue-chip {
+      display: none; max-width: 100%;
+      padding: 4px 10px; border-radius: 6px;
+      font-family: Fraunces, Georgia, serif; font-weight: 560; line-height: 1.35;
+      white-space: pre-line;
+    }
+    .cue-chip.on { display: inline-block; }
+    .player-tools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .sub-settings {
+      margin-top: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 12px;
+      background: var(--bg-2); display: grid; gap: 10px;
+    }
+    .sub-settings.hidden { display: none; }
+    .sub-row { display: grid; grid-template-columns: 90px 1fr; align-items: center; gap: 10px; }
+    .sub-row label { margin: 0; }
+    .sub-row input[type="range"] { margin: 0; }
+    .sub-swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+    .sub-swatches button {
+      width: 22px; height: 22px; padding: 0; border-radius: 50%; border: 2px solid transparent;
+    }
+    .sub-swatches button.on { border-color: var(--ink); }
+    @media (prefers-reduced-motion: reduce) {
+      .atmosphere .orb, .mark, .row-in { animation: none !important; }
+    }
 
     @media (max-width: 720px) {
       .shell { padding: 16px 14px calc(28px + env(safe-area-inset-bottom, 0px)); }
@@ -544,6 +620,13 @@
   </style>
 </head>
 <body>
+  <div class="atmosphere" aria-hidden="true">
+    <div class="orb orb-a"></div>
+    <div class="orb orb-b"></div>
+    <div class="orb orb-c"></div>
+    <div class="grid"></div>
+    <div class="grain"></div>
+  </div>
   <div class="shell">
     <header class="app">
       <div class="brand">
@@ -891,6 +974,7 @@
     let estimateTimer = null;
     let uploadXhr = null;
     let previewURL = null;
+    let cueTimer = 0;
     let vaultFiles = [];
     let pendingPassword = "";
     let vaultDEK = null;
@@ -1312,6 +1396,8 @@
         case "htm": return "text/html";
         case "json": return "application/json";
         case "csv": return "text/csv";
+        case "srt": return "text/plain";
+        case "vtt": return "text/vtt";
         case "docx": return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
         case "mp4":
         case "m4v": return "video/mp4";
@@ -1381,6 +1467,7 @@
       const ext = fileExt(name);
       if (isImageKey(name)) return { cls: "img", label: "IMG" };
       if (isVideoKey(name)) return { cls: "img", label: "VID" };
+      if (fileExt(name) === "srt" || fileExt(name) === "vtt") return { cls: "doc", label: "SUB" };
       if (isAudioKey(name)) return { cls: "doc", label: "AUD" };
       if (["pdf", "doc", "docx", "txt", "md"].includes(ext)) return { cls: "doc", label: ext.toUpperCase().slice(0, 3) };
       return { cls: "", label: (ext || "FILE").toUpperCase().slice(0, 4) };
@@ -2518,6 +2605,10 @@
     });
 
     function closePreview() {
+      if (cueTimer) {
+        cancelAnimationFrame(cueTimer);
+        cueTimer = 0;
+      }
       $("preview-body").querySelectorAll("audio, video").forEach((el) => {
         el.pause();
         el.removeAttribute("src");
@@ -2529,6 +2620,215 @@
         URL.revokeObjectURL(previewURL);
         previewURL = null;
       }
+    }
+
+    const subSetKey = "minicloud.subs";
+    function loadSubSettings() {
+      const base = { size: 18, color: "#f6f1e6", bg: 0.55, pos: "bottom", delay: 0 };
+      try { return Object.assign(base, JSON.parse(localStorage.getItem(subSetKey) || "{}")); }
+      catch { return base; }
+    }
+    function saveSubSettings(s) {
+      localStorage.setItem(subSetKey, JSON.stringify(s));
+    }
+    function srtTime(raw) {
+      const s = String(raw || "").trim().replace(",", ".");
+      const parts = s.split(":");
+      if (parts.length < 2) return 0;
+      if (parts.length === 2) return (+parts[0] || 0) * 60 + parseFloat(parts[1] || "0");
+      return (+parts[0] || 0) * 3600 + (+parts[1] || 0) * 60 + parseFloat(parts[2] || "0");
+    }
+    function parseSrt(text) {
+      text = String(text || "").replace(/^\uFEFF/, "").replace(/\r/g, "");
+      if (text.startsWith("WEBVTT")) text = text.replace(/^WEBVTT[^\n]*\n+/, "");
+      const cues = [];
+      for (const block of text.split(/\n{2,}/)) {
+        const lines = block.split("\n").filter((l) => l.trim() !== "");
+        if (!lines.length) continue;
+        let i = 0;
+        if (/^\d+$/.test(lines[0])) i = 1;
+        const stamp = lines[i] || "";
+        if (!/-->/.test(stamp)) continue;
+        const [a, b] = stamp.split(/\s*-->\s*/);
+        const body = lines.slice(i + 1).join("\n").replace(/<[^>]+>/g, "");
+        if (!body) continue;
+        cues.push({ start: srtTime(a), end: srtTime(b.split(/\s+/)[0]), text: body });
+      }
+      return cues;
+    }
+    function siblingSrt(videoKey) {
+      const stem = videoKey.replace(/\.[^.]+$/, "");
+      return (vaultFiles || []).find((f) => {
+        const k = f.key;
+        return k === stem + ".srt" || k === stem + ".vtt" || k === videoKey + ".srt";
+      }) || null;
+    }
+    async function readVaultText(f) {
+      const r = await fetch(fileAPI("objects", f.key), { headers: { Authorization: "Bearer " + token() } });
+      if (!r.ok) return "";
+      let bytes = new Uint8Array(await r.arrayBuffer());
+      if (isEncrypted(f)) {
+        try { bytes = await decryptDownload(bytes.buffer, f.enc_wrap); }
+        catch { return ""; }
+      }
+      return new TextDecoder().decode(bytes);
+    }
+    function applyCueStyle(chip, layer, set) {
+      chip.style.fontSize = set.size + "px";
+      chip.style.color = set.color;
+      chip.style.background = "rgba(8, 10, 9, " + set.bg + ")";
+      layer.className = "cue-layer pos-" + (set.pos || "bottom");
+    }
+    function startCues(video, chip, layer, cues, getSet) {
+      const tick = () => {
+        if (!video.isConnected) return;
+        const set = getSet();
+        const t = video.currentTime + (Number(set.delay) || 0);
+        const hit = cues.find((c) => t >= c.start && t <= c.end);
+        chip.textContent = hit ? hit.text : "";
+        chip.classList.toggle("on", !!hit);
+        applyCueStyle(chip, layer, set);
+        cueTimer = requestAnimationFrame(tick);
+      };
+      cueTimer = requestAnimationFrame(tick);
+    }
+    function subSettingsPanel(set, onChange) {
+      const box = document.createElement("div");
+      box.className = "sub-settings hidden";
+      const colors = ["#f6f1e6", "#e3c27a", "#ffe566", "#ffffff", "#9ad7c2"];
+      box.innerHTML = "";
+      const row = (label, control) => {
+        const r = document.createElement("div");
+        r.className = "sub-row";
+        const l = document.createElement("label");
+        l.textContent = label;
+        r.append(l, control);
+        return r;
+      };
+      const size = document.createElement("input");
+      size.type = "range"; size.min = "14"; size.max = "36"; size.value = String(set.size);
+      size.oninput = () => { set.size = +size.value; onChange(set); };
+      const sw = document.createElement("div");
+      sw.className = "sub-swatches";
+      colors.forEach((c) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.style.background = c;
+        b.className = set.color === c ? "on" : "";
+        b.onclick = () => {
+          set.color = c;
+          [...sw.children].forEach((x) => x.classList.toggle("on", x === b));
+          onChange(set);
+        };
+        sw.append(b);
+      });
+      const bg = document.createElement("input");
+      bg.type = "range"; bg.min = "0"; bg.max = "0.85"; bg.step = "0.05"; bg.value = String(set.bg);
+      bg.oninput = () => { set.bg = +bg.value; onChange(set); };
+      const pos = document.createElement("select");
+      [["bottom", "Bottom"], ["middle", "Middle"], ["top", "Top"]].forEach(([v, t]) => {
+        const o = document.createElement("option");
+        o.value = v; o.textContent = t;
+        if (set.pos === v) o.selected = true;
+        pos.append(o);
+      });
+      pos.onchange = () => { set.pos = pos.value; onChange(set); };
+      const delay = document.createElement("input");
+      delay.type = "range"; delay.min = "-3"; delay.max = "3"; delay.step = "0.1"; delay.value = String(set.delay);
+      delay.oninput = () => { set.delay = +delay.value; onChange(set); };
+      box.append(
+        row("Size", size),
+        row("Color", sw),
+        row("Background", bg),
+        row("Position", pos),
+        row("Timing", delay),
+      );
+      return box;
+    }
+    async function saveSrtBeside(videoKey, file) {
+      const dest = videoKey.replace(/\.[^.]+$/, "") + ".srt";
+      const headers = { Authorization: "Bearer " + token() };
+      let send = file;
+      if (!currentShare && vaultDEK) {
+        const enc = await encryptForUpload(file);
+        send = enc.body;
+        headers["X-Minicloud-Enc"] = "1";
+        headers["X-Minicloud-Wrap"] = enc.wrap;
+      }
+      const put = await putWithProgress(fileAPI("objects", dest), headers, send, () => {});
+      if (put.ok) refresh();
+      return put.ok;
+    }
+    async function renderVideoPlayer(body, f, url) {
+      const stage = document.createElement("div");
+      stage.className = "player-stage";
+      const video = document.createElement("video");
+      video.controls = true;
+      video.playsInline = true;
+      video.setAttribute("playsinline", "");
+      video.setAttribute("webkit-playsinline", "");
+      video.preload = "metadata";
+      video.src = url;
+      const layer = document.createElement("div");
+      layer.className = "cue-layer pos-bottom";
+      const chip = document.createElement("span");
+      chip.className = "cue-chip";
+      layer.append(chip);
+      stage.append(video, layer);
+      const tools = document.createElement("div");
+      tools.className = "player-tools";
+      const pick = document.createElement("button");
+      pick.type = "button";
+      pick.className = "ghost small";
+      pick.textContent = "Add .srt subtitles";
+      const gear = document.createElement("button");
+      gear.type = "button";
+      gear.className = "ghost small";
+      gear.textContent = "Subtitle settings";
+      const status = document.createElement("span");
+      status.className = "preview-hint";
+      const fileInput = document.createElement("input");
+      fileInput.type = "file";
+      fileInput.accept = ".srt,.vtt,text/plain";
+      fileInput.className = "hidden";
+      tools.append(pick, gear, status);
+      let set = loadSubSettings();
+      const panel = subSettingsPanel(set, (next) => {
+        set = next;
+        saveSubSettings(set);
+        applyCueStyle(chip, layer, set);
+      });
+      applyCueStyle(chip, layer, set);
+      let cues = [];
+      const useText = (text, label) => {
+        cues = parseSrt(text);
+        if (cueTimer) cancelAnimationFrame(cueTimer);
+        if (!cues.length) {
+          status.textContent = "That file did not look like an .srt";
+          return;
+        }
+        status.textContent = label + " · " + cues.length + " lines";
+        startCues(video, chip, layer, cues, () => set);
+      };
+      const existing = siblingSrt(f.key);
+      if (existing) {
+        status.textContent = "Loading " + prettyName(existing.key) + "…";
+        const text = await readVaultText(existing);
+        useText(text, prettyName(existing.key));
+      }
+      pick.onclick = () => fileInput.click();
+      gear.onclick = () => panel.classList.toggle("hidden");
+      fileInput.onchange = async () => {
+        const file = fileInput.files[0];
+        fileInput.value = "";
+        if (!file) return;
+        useText(await file.text(), file.name);
+        if (canWrite()) {
+          const ok = await saveSrtBeside(f.key, file);
+          if (ok) status.textContent = (status.textContent || "Subtitles") + " · saved beside this video";
+        }
+      };
+      body.append(stage, tools, fileInput, panel);
     }
 
     async function previewFile(f) {
@@ -2565,12 +2865,7 @@
         return;
       }
       if (isVideoKey(name) || blob.type.startsWith("video/")) {
-        const video = document.createElement("video");
-        video.controls = true;
-        video.playsInline = true;
-        video.preload = "metadata";
-        video.src = previewURL;
-        body.append(video);
+        await renderVideoPlayer(body, f, previewURL);
         return;
       }
       if (isAudioKey(name) || blob.type.startsWith("audio/")) {
@@ -3016,9 +3311,16 @@
         list.innerHTML = "<li class='empty' style='display:block;grid-column:1/-1'>Nothing here yet. Use Upload, New folder, or New shared folder.</li>";
         return;
       }
-      for (const folder of shared) list.append(sharedFolderRow(folder));
-      for (const name of view.folders) list.append(folderRow(name));
-      for (const f of view.files) list.append(fileRow(f));
+      let delay = 0;
+      const addRow = (el) => {
+        el.classList.add("row-in");
+        el.style.animationDelay = (delay * 0.035) + "s";
+        delay += 1;
+        list.append(el);
+      };
+      for (const folder of shared) addRow(sharedFolderRow(folder));
+      for (const name of view.folders) addRow(folderRow(name));
+      for (const f of view.files) addRow(fileRow(f));
     }
 
     paintIcon("view-list", "list");
