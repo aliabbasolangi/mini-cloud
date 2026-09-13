@@ -47,18 +47,44 @@
     }
     .atmosphere {
       position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;
-      background: linear-gradient(180deg, #0c1412 0%, var(--bg) 42%);
+      background: radial-gradient(1200px 700px at 18% -10%, rgba(227, 194, 122, 0.08), transparent 55%),
+                  radial-gradient(900px 600px at 90% 20%, rgba(70, 130, 112, 0.08), transparent 50%),
+                  linear-gradient(180deg, #0c1412 0%, var(--bg) 42%);
     }
     :root.theme-light .atmosphere {
-      background: var(--bg);
+      background: radial-gradient(1200px 700px at 18% -10%, rgba(196, 154, 70, 0.16), transparent 55%),
+                  radial-gradient(900px 600px at 90% 20%, rgba(70, 130, 112, 0.1), transparent 50%),
+                  var(--bg);
     }
     .atmosphere .orb {
-      position: absolute; border-radius: 50%; filter: blur(70px);
-      opacity: 0.5; animation: orb-drift 32s ease-in-out infinite alternate;
+      position: absolute; border-radius: 50%; filter: blur(80px);
+      will-change: transform; mix-blend-mode: screen;
     }
-    .orb-a { width: 460px; height: 460px; background: rgba(227, 194, 122, 0.26); top: -120px; left: -80px; }
-    .orb-b { width: 380px; height: 380px; background: rgba(70, 130, 112, 0.2); top: 18%; right: -90px; animation-delay: -10s; }
-    .orb-c { width: 300px; height: 300px; background: rgba(227, 194, 122, 0.12); bottom: -80px; left: 28%; animation-delay: -18s; }
+    :root.theme-light .atmosphere .orb { mix-blend-mode: multiply; }
+    .orb-a {
+      width: min(620px, 54vw); height: min(620px, 54vw);
+      background: rgba(227, 194, 122, 0.42);
+      top: -18%; left: -14%;
+      animation: orb-wander-a 26s ease-in-out infinite alternate;
+    }
+    .orb-b {
+      width: min(520px, 46vw); height: min(520px, 46vw);
+      background: rgba(70, 150, 120, 0.36);
+      top: 6%; right: -16%;
+      animation: orb-wander-b 34s ease-in-out infinite alternate;
+    }
+    .orb-c {
+      width: min(440px, 40vw); height: min(440px, 40vw);
+      background: rgba(227, 194, 122, 0.22);
+      bottom: -18%; left: 18%;
+      animation: orb-wander-c 40s ease-in-out infinite alternate;
+    }
+    .orb-d {
+      width: min(360px, 32vw); height: min(360px, 32vw);
+      background: rgba(130, 168, 210, 0.2);
+      top: 46%; left: 42%;
+      animation: orb-wander-d 22s ease-in-out infinite alternate;
+    }
     .atmosphere .grid {
       position: absolute; inset: 0;
       background-image:
@@ -66,14 +92,33 @@
         linear-gradient(90deg, rgba(227, 194, 122, 0.045) 1px, transparent 1px);
       background-size: 56px 56px;
       mask-image: radial-gradient(ellipse at 50% 0%, #000 12%, transparent 72%);
+      animation: grid-drift 80s linear infinite;
     }
     .atmosphere .grain {
       position: absolute; inset: 0; opacity: 0.08;
       background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     }
-    @keyframes orb-drift {
-      from { transform: translate(0, 0) scale(1); }
-      to { transform: translate(36px, 22px) scale(1.08); }
+    @keyframes orb-wander-a {
+      0% { transform: translate(0, 0) scale(1); }
+      50% { transform: translate(22vw, 16vh) scale(1.2); }
+      100% { transform: translate(6vw, 30vh) scale(0.88); }
+    }
+    @keyframes orb-wander-b {
+      0% { transform: translate(0, 0) scale(1.05); }
+      50% { transform: translate(-24vw, 22vh) scale(0.86); }
+      100% { transform: translate(-8vw, -10vh) scale(1.18); }
+    }
+    @keyframes orb-wander-c {
+      0% { transform: translate(0, 0) scale(1); }
+      50% { transform: translate(-18vw, -20vh) scale(1.24); }
+      100% { transform: translate(16vw, -8vh) scale(0.9); }
+    }
+    @keyframes orb-wander-d {
+      0% { transform: translate(-8vw, 4vh) scale(0.9); }
+      100% { transform: translate(14vw, -18vh) scale(1.28); }
+    }
+    @keyframes grid-drift {
+      to { background-position: 56px 56px; }
     }
     @keyframes rise-in {
       from { opacity: 0; transform: translateY(10px); }
@@ -82,6 +127,24 @@
     @keyframes mark-glow {
       0%, 100% { box-shadow: 0 8px 22px var(--glow); }
       50% { box-shadow: 0 10px 30px rgba(227, 194, 122, 0.38); }
+    }
+    .page-stack { position: relative; view-transition-name: vault-page; }
+    .page-in { animation: page-in 0.5s cubic-bezier(.22, 1, .32, 1) both; }
+    @keyframes page-in {
+      from { opacity: 0; transform: translateY(18px); filter: blur(6px); }
+      to { opacity: 1; transform: none; filter: none; }
+    }
+    ::view-transition-old(vault-page) {
+      animation: vt-leave 0.32s ease both;
+    }
+    ::view-transition-new(vault-page) {
+      animation: vt-enter 0.5s cubic-bezier(.22, 1, .32, 1) both;
+    }
+    @keyframes vt-leave {
+      to { opacity: 0; transform: translateY(-10px) scale(0.985); filter: blur(5px); }
+    }
+    @keyframes vt-enter {
+      from { opacity: 0; transform: translateY(18px) scale(0.985); filter: blur(5px); }
     }
     .shell { max-width: 980px; margin: 0 auto; padding: 28px 20px 64px; }
     header.app {
@@ -358,12 +421,7 @@
     .files.list li:first-child { border-top: 0; }
     .files.list .mid { min-width: 0; }
     .files.list .name { min-width: 0; }
-    .files.list .name button.link {
-      display: block;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
+    .files.list .row-actions { flex-shrink: 0; }
     .files.grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(188px, 210px));
@@ -410,7 +468,17 @@
     }
     .icon img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
     .name { font-weight: 600; color: var(--ink); }
-    .name button.link { all: unset; cursor: pointer; color: var(--ink); font-weight: 600; }
+    .name button.link {
+      all: unset;
+      cursor: pointer;
+      color: var(--ink);
+      font-weight: 600;
+      display: block;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
     .name button.link:hover { color: var(--accent); }
     .meta { color: var(--muted); font-size: 12px; }
     .empty { text-align: center; color: var(--muted); padding: 28px 8px; }
@@ -544,7 +612,9 @@
     }
     .sub-swatches button.on { border-color: var(--ink); }
     @media (prefers-reduced-motion: reduce) {
-      .atmosphere .orb, .mark, .row-in { animation: none !important; }
+      .atmosphere .orb, .atmosphere .grid, .mark, .row-in, .page-in { animation: none !important; }
+      ::view-transition-old(vault-page),
+      ::view-transition-new(vault-page) { animation: none !important; }
     }
 
     @media (max-width: 720px) {
@@ -624,6 +694,7 @@
     <div class="orb orb-a"></div>
     <div class="orb orb-b"></div>
     <div class="orb orb-c"></div>
+    <div class="orb orb-d"></div>
     <div class="grid"></div>
     <div class="grain"></div>
   </div>
@@ -663,6 +734,7 @@
       </div>
     </header>
 
+    <div class="page-stack">
     <section id="auth" class="auth-wrap card">
       <h2 id="auth-title">Welcome back</h2>
       <p class="lead" id="auth-lead">Unlock your vault. Personal files are sealed in the browser before they leave this device.</p>
@@ -846,6 +918,7 @@
         <div id="notif-list"></div>
       </div>
     </section>
+    </div>
   </div>
 
   <div id="page-drop" class="page-drop hidden">
@@ -1785,30 +1858,60 @@
       $("approvals").classList.add("hidden");
     }
 
+    function reduceMotion() {
+      return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    }
+
+    function swapPages(update) {
+      const apply = typeof update === "function" ? update : () => {};
+      if (reduceMotion()) {
+        apply();
+        return;
+      }
+      if (document.startViewTransition) {
+        document.startViewTransition(apply).finished.catch(() => {});
+        return;
+      }
+      apply();
+      const page = document.querySelector(".page-stack > :not(.hidden)");
+      if (!page) return;
+      page.classList.remove("page-in");
+      void page.offsetWidth;
+      page.classList.add("page-in");
+    }
+
     function openSettings() {
       closeAccountMenu();
       $("profile-err").textContent = "";
       $("profile-ok").textContent = "";
-      hidePages();
-      $("settings").classList.remove("hidden");
+      swapPages(() => {
+        hidePages();
+        $("settings").classList.remove("hidden");
+      });
     }
 
     function closeSettings() {
-      hidePages();
-      $("drive").classList.remove("hidden");
+      swapPages(() => {
+        hidePages();
+        $("drive").classList.remove("hidden");
+      });
     }
 
     function openNotifications() {
       closeAccountMenu();
-      hidePages();
-      $("notifications").classList.remove("hidden");
+      swapPages(() => {
+        hidePages();
+        $("notifications").classList.remove("hidden");
+      });
       loadNotifications();
     }
 
     function openApprovals() {
       closeAccountMenu();
-      hidePages();
-      $("approvals").classList.remove("hidden");
+      swapPages(() => {
+        hidePages();
+        $("approvals").classList.remove("hidden");
+      });
       loadApprovals();
     }
 
@@ -1877,21 +1980,25 @@
     }
 
     function showDrive() {
-      $("auth").classList.add("hidden");
-      hidePages();
-      $("drive").classList.remove("hidden");
       $("who-bar").classList.remove("hidden");
+      swapPages(() => {
+        $("auth").classList.add("hidden");
+        hidePages();
+        $("drive").classList.remove("hidden");
+      });
       setView(viewMode);
       loadProfile();
       refresh();
     }
     function showAuth() {
-      hidePages();
       $("who-bar").classList.add("hidden");
       closeAccountMenu();
       closeConvert();
       closeDeleteAccount();
-      $("auth").classList.remove("hidden");
+      swapPages(() => {
+        hidePages();
+        $("auth").classList.remove("hidden");
+      });
       currentShare = null;
       currentPrefix = "";
       clearAuthForm();

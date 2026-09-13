@@ -18,9 +18,26 @@
       background: var(--bg);
     }
     .atmosphere { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
-    .orb { position: absolute; border-radius: 50%; filter: blur(70px); opacity: .45; }
-    .orb-a { width: 380px; height: 380px; background: rgba(227,194,122,.28); top: -80px; left: -60px; }
-    .orb-b { width: 280px; height: 280px; background: rgba(70,130,112,.2); right: -70px; bottom: 10%; }
+    .orb { position: absolute; border-radius: 50%; filter: blur(80px); mix-blend-mode: screen; will-change: transform; }
+    .orb-a {
+      width: min(520px, 54vw); height: min(520px, 54vw); background: rgba(227,194,122,.4);
+      top: -18%; left: -14%; animation: orb-a 26s ease-in-out infinite alternate;
+    }
+    .orb-b {
+      width: min(400px, 42vw); height: min(400px, 42vw); background: rgba(70,150,120,.32);
+      right: -16%; bottom: 4%; animation: orb-b 34s ease-in-out infinite alternate;
+    }
+    @keyframes orb-a {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(18vw, 22vh) scale(1.2); }
+    }
+    @keyframes orb-b {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(-16vw, -14vh) scale(1.15); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .orb { animation: none !important; }
+    }
     main {
       width: min(440px, 100%); background: var(--card); border: 1px solid var(--line);
       border-radius: 20px; padding: 28px; backdrop-filter: blur(16px);
