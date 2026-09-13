@@ -2,7 +2,11 @@
 
 A small personal file vault: a Go API plus a web UI. You log in, upload files, put them in folders, and share a link that works for 24 hours.
 
+Live: https://safekeeping.lol
+
 Files are stored as raw bytes on disk, named by a fingerprint. Names, owners, and share links live in a SQLite catalog.
+
+This repo is the source. It does **not** include a real `.env`, uploaded files, the SQLite database, or the JWT secret. Those stay on the machine or host. Copy `.env.example` if you want local overrides. Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` only in your own environment.
 
 ## Run it
 
@@ -58,3 +62,7 @@ See `.env.example`. Do not commit a real `.env`.
 ## What this is not
 
 Not a Dropbox desktop sync client, and not a full Amazon S3 clone. One process, one disk, your files.
+
+## License
+
+MIT. See `LICENSE`.
