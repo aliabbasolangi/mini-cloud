@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>SafeKeeping</title>
   <link rel="icon" href="/logo.png" type="image/png" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -37,6 +37,7 @@
       --glow: rgba(196, 154, 70, 0.18);
     }
     * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
     html, body { height: 100%; }
     body {
       margin: 0;
@@ -314,6 +315,14 @@
       border-top: 1px solid var(--line);
     }
     .files.list li:first-child { border-top: 0; }
+    .files.list .mid { min-width: 0; }
+    .files.list .name { min-width: 0; }
+    .files.list .name button.link {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
     .files.grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(188px, 210px));
@@ -399,6 +408,7 @@
     .modal.wide { width: min(860px, 100%); }
     .modal h2 { margin: 0 0 8px; font-size: 18px; }
     #preview-body { max-height: 70vh; overflow: auto; margin: 12px 0; color: var(--muted); }
+    #preview-body:has(video), #preview-body:has(audio) { overflow: visible; }
     #preview-body img { max-width: 100%; max-height: 65vh; display: block; margin: 0 auto; border-radius: 8px; }
     #preview-body iframe, #preview-body embed, #preview-body object {
       width: 100%; height: 65vh; border: 0; background: #fff; border-radius: 8px; display: block;
@@ -408,6 +418,7 @@
     #preview-body video, #preview-body audio {
       width: 100%; display: block; border-radius: 10px; background: #0a0a0a;
     }
+    #preview-body video { max-height: 55vh; min-height: 180px; }
     #preview-body audio { height: 48px; }
     .upload-progress { margin: 4px 0 14px; }
     .upload-progress-label { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
@@ -459,6 +470,77 @@
     }
     .theme-row { display: flex; gap: 8px; margin-bottom: 14px; }
     .ok { color: var(--ok); font-size: 13px; min-height: 1.2em; margin: 12px 0 0; }
+
+    @media (max-width: 720px) {
+      .shell { padding: 16px 14px calc(28px + env(safe-area-inset-bottom, 0px)); }
+      header.app { margin-bottom: 14px; gap: 10px; }
+      .brand { min-width: 0; }
+      .brand h1 { font-size: 20px; }
+      .brand span { display: none; }
+      .auth-wrap { margin: 20px auto 0; padding: 22px 18px; border-radius: 18px; }
+      .auth-wrap h2 { font-size: 24px; }
+      .name-row { grid-template-columns: 1fr; }
+      .usage { font-size: 12px; }
+      .toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        margin: 14px 0 8px;
+      }
+      .crumbs { font-size: 13px; }
+      .stats {
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 8px;
+        padding-bottom: 2px;
+        -webkit-overflow-scrolling: touch;
+      }
+      .stats .count { display: none; }
+      .tool-group { flex-shrink: 0; }
+      button.icon-btn { width: 40px; height: 40px; }
+      .files { padding: 4px 8px 10px; border-radius: 16px; }
+      .files.list li {
+        grid-template-columns: 44px 1fr;
+        grid-template-areas: "icon mid" "actions actions";
+        gap: 8px 10px;
+        padding: 12px 4px;
+      }
+      .files.list .icon { grid-area: icon; width: 44px; height: 44px; }
+      .files.list .mid { grid-area: mid; }
+      .files.list .row-actions {
+        grid-area: actions;
+        justify-content: flex-end;
+        gap: 6px;
+      }
+      .files.list .name button.link {
+        white-space: normal;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+      .files.grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        padding: 10px;
+        gap: 8px;
+      }
+      .files.grid .icon { width: 72px; height: 72px; }
+      .collab-bar, .folder-form { flex-direction: column; align-items: stretch; }
+      .folder-form input, .collab-bar input { max-width: none; }
+      .overlay { padding: 10px; align-items: end; }
+      .modal, .modal.wide {
+        width: 100%;
+        max-height: min(92vh, 100%);
+        overflow: auto;
+        border-radius: 18px;
+      }
+      #preview-body iframe, #preview-body embed, #preview-body object { height: 50vh; }
+      .account-menu { width: min(260px, calc(100vw - 28px)); }
+      .settings-page { max-width: none; }
+    }
   </style>
 </head>
 <body>
@@ -1207,8 +1289,13 @@
       return !!(bytes && bytes.length >= 5 && bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46 && bytes[4] === 0x2d);
     }
 
+    function looksLikeMp4(bytes) {
+      return !!(bytes && bytes.length >= 12 && bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70);
+    }
+
     function mimeFor(name, bytes) {
       if (looksLikePdf(bytes)) return "application/pdf";
+      if (looksLikeMp4(bytes)) return "video/mp4";
       switch (fileExt(name)) {
         case "pdf": return "application/pdf";
         case "png": return "image/png";
@@ -1225,9 +1312,12 @@
         case "htm": return "text/html";
         case "json": return "application/json";
         case "csv": return "text/csv";
-        case "mp4": return "video/mp4";
+        case "docx": return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        case "mp4":
+        case "m4v": return "video/mp4";
         case "webm": return "video/webm";
         case "mov": return "video/quicktime";
+        case "3gp": return "video/3gpp";
         case "mp3": return "audio/mpeg";
         case "m4a": return "audio/mp4";
         case "wav": return "audio/wav";
@@ -1238,7 +1328,7 @@
     }
 
     function isVideoKey(name) {
-      return ["mp4", "webm", "mov"].includes(fileExt(name));
+      return ["mp4", "m4v", "webm", "mov", "3gp"].includes(fileExt(name));
     }
 
     function isAudioKey(name) {
@@ -2712,10 +2802,14 @@
       return li;
     }
 
+    function isPhone() {
+      return window.matchMedia("(max-width: 720px)").matches;
+    }
+
     function fileRow(f) {
       const k = kind(f.key);
       const li = document.createElement("li");
-      li.draggable = canWrite();
+      li.draggable = canWrite() && !isPhone();
       li.addEventListener("dragstart", (e) => {
         e.dataTransfer.setData(MOVE_TYPE, f.key);
         e.dataTransfer.setData("text/plain", f.key);

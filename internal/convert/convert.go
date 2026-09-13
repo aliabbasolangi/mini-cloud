@@ -10,6 +10,7 @@ import (
 var (
 	ErrUnsupported = errors.New("that conversion is not supported yet")
 	ErrEmpty       = errors.New("file is empty")
+	ErrNoText      = errors.New("could not read the text from this PDF")
 )
 
 type Result struct {
@@ -96,7 +97,10 @@ func Convert(src []byte, srcName, to string) (*Result, error) {
 		}
 		return fromText(text, srcName, to)
 	case from == "pdf":
-		text := PDFToText(src)
+		text := strings.TrimSpace(PDFToText(src))
+		if text == "" {
+			return nil, ErrNoText
+		}
 		return fromText(text, srcName, to)
 	default:
 		return fromText(string(src), srcName, to)

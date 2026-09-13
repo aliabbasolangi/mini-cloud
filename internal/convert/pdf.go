@@ -2,7 +2,10 @@ package convert
 
 import (
 	"bytes"
+	"compress/flate"
+	"compress/zlib"
 	"fmt"
+	"io"
 	"regexp"
 	"strconv"
 	"strings"
@@ -157,27 +160,163 @@ func wrapPDFLines(text string, width int) []string {
 	return out
 }
 
-var pdfString = regexp.MustCompile(`\((?:\\.|[^\\)])*\)`)
+var (
+	pdfShow  = regexp.MustCompile(`\((?:\\.|[^\\)])*\)\s*(?:Tj|'|")`)
+	pdfTJ    = regexp.MustCompile(`\[(?:[^\[\]]|\[[^\[\]]*\])*\]\s*TJ`)
+	pdfLit   = regexp.MustCompile(`\((?:\\.|[^\\)])*\)`)
+	pdfFlate = regexp.MustCompile(`(?i)/FlateDecode`)
+)
 
 func PDFToText(src []byte) string {
-	matches := pdfString.FindAll(src, -1)
 	var parts []string
-	for _, m := range matches {
-		s := string(m)
-		if len(s) < 2 {
+	for _, chunk := range pdfContentChunks(src) {
+		parts = append(parts, textFromPDFContent(chunk)...)
+	}
+	// Last resort: literals in uncompressed objects only, never raw binary.
+	if len(parts) == 0 {
+		parts = append(parts, textFromPDFContent(src)...)
+	}
+	return strings.TrimSpace(strings.Join(parts, ""))
+}
+
+func pdfContentChunks(src []byte) [][]byte {
+	var out [][]byte
+	for i := 0; i < len(src); {
+		start := bytes.Index(src[i:], []byte("stream"))
+		if start < 0 {
+			break
+		}
+		abs := i + start
+		dictFrom := abs - 800
+		if dictFrom < i {
+			dictFrom = i
+		}
+		dict := src[dictFrom:abs]
+		dataStart := abs + 6
+		if dataStart < len(src) && src[dataStart] == '\r' {
+			dataStart++
+		}
+		if dataStart < len(src) && src[dataStart] == '\n' {
+			dataStart++
+		}
+		end := bytes.Index(src[dataStart:], []byte("endstream"))
+		if end < 0 {
+			break
+		}
+		data := bytes.TrimRight(src[dataStart:dataStart+end], "\r\n")
+		if pdfFlate.Match(dict) {
+			if dec, err := inflatePDF(data); err == nil {
+				data = dec
+			} else {
+				i = dataStart + end + 9
+				continue
+			}
+		}
+		out = append(out, data)
+		i = dataStart + end + 9
+	}
+	return out
+}
+
+func inflatePDF(data []byte) ([]byte, error) {
+	zr, err := zlib.NewReader(bytes.NewReader(data))
+	if err == nil {
+		defer zr.Close()
+		return io.ReadAll(zr)
+	}
+	fr := flate.NewReader(bytes.NewReader(data))
+	defer fr.Close()
+	return io.ReadAll(fr)
+}
+
+func textFromPDFContent(src []byte) []string {
+	var parts []string
+	for _, m := range pdfTJ.FindAll(src, -1) {
+		for _, lit := range pdfLit.FindAll(m, -1) {
+			if s := decodePDFLiteral(lit); s != "" {
+				parts = append(parts, s)
+			}
+		}
+		parts = append(parts, "\n")
+	}
+	for _, m := range pdfShow.FindAll(src, -1) {
+		lit := pdfLit.Find(m)
+		if lit == nil {
 			continue
 		}
-		s = s[1 : len(s)-1]
-		s = strings.ReplaceAll(s, "\\(", "(")
-		s = strings.ReplaceAll(s, "\\)", ")")
-		s = strings.ReplaceAll(s, "\\\\", "\\")
-		if s == "" || strings.HasPrefix(s, "/") {
-			continue
-		}
-		if _, err := strconv.Atoi(s); err == nil && len(s) < 4 {
+		s := decodePDFLiteral(lit)
+		if s == "" {
 			continue
 		}
 		parts = append(parts, s)
+		if bytes.Contains(m, []byte("'")) || bytes.Contains(m, []byte(`"`)) {
+			parts = append(parts, "\n")
+		} else {
+			parts = append(parts, " ")
+		}
 	}
-	return strings.Join(parts, "\n")
+	return parts
+}
+
+func decodePDFLiteral(raw []byte) string {
+	if len(raw) < 2 || raw[0] != '(' || raw[len(raw)-1] != ')' {
+		return ""
+	}
+	s := string(raw[1 : len(raw)-1])
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] != '\\' || i+1 >= len(s) {
+			b.WriteByte(s[i])
+			continue
+		}
+		i++
+		switch s[i] {
+		case 'n':
+			b.WriteByte('\n')
+		case 'r':
+			b.WriteByte('\r')
+		case 't':
+			b.WriteByte('\t')
+		case 'b', 'f':
+			b.WriteByte(' ')
+		case '(', ')', '\\':
+			b.WriteByte(s[i])
+		case '\n', '\r':
+			if s[i] == '\r' && i+1 < len(s) && s[i+1] == '\n' {
+				i++
+			}
+		default:
+			if s[i] >= '0' && s[i] <= '7' {
+				n, used := pdfOctal(s[i:])
+				b.WriteByte(byte(n))
+				i += used - 1
+			}
+		}
+	}
+	out := strings.ReplaceAll(b.String(), "\r", "")
+	if !usefulPDFText(out) {
+		return ""
+	}
+	if _, err := strconv.Atoi(strings.TrimSpace(out)); err == nil && len(out) < 4 {
+		return ""
+	}
+	return out
+}
+
+func pdfOctal(s string) (n, used int) {
+	for used < 3 && used < len(s) && s[used] >= '0' && s[used] <= '7' {
+		n = n*8 + int(s[used]-'0')
+		used++
+	}
+	return n, used
+}
+
+func usefulPDFText(s string) bool {
+	letters := 0
+	for _, r := range s {
+		if unicode.IsLetter(r) || unicode.IsNumber(r) {
+			letters++
+		}
+	}
+	return letters >= 2
 }

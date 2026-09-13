@@ -2,6 +2,8 @@ package convert
 
 import (
 	"bytes"
+	"compress/zlib"
+	"fmt"
 	"image"
 	"image/png"
 	"strings"
@@ -44,6 +46,53 @@ func TestTextToDocxAndBack(t *testing.T) {
 	}
 	if !strings.Contains(string(txt.Bytes), "hello Ali") {
 		t.Fatalf("round trip got %q", txt.Bytes)
+	}
+}
+
+func TestPDFToDocxKeepsReadableText(t *testing.T) {
+	pdf, err := TextToPDF("Ali Abbas\nSoftware engineer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc, err := Convert(pdf, "cv.pdf", "docx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	txt, err := Convert(doc.Bytes, "cv.docx", "txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(txt.Bytes), "Ali") {
+		t.Fatalf("got %q", txt.Bytes)
+	}
+}
+
+func TestCompressedPDFToText(t *testing.T) {
+	content := "BT /F1 11 Tf (SafeKeeping vault) Tj ET\n"
+	var zbuf bytes.Buffer
+	zw := zlib.NewWriter(&zbuf)
+	if _, err := zw.Write([]byte(content)); err != nil {
+		t.Fatal(err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	var pdf bytes.Buffer
+	fmt.Fprintf(&pdf, "%%PDF-1.4\n1 0 obj\n<< /Length %d /Filter /FlateDecode >>\nstream\n", zbuf.Len())
+	pdf.Write(zbuf.Bytes())
+	pdf.WriteString("\nendstream\nendobj\n")
+	got := PDFToText(pdf.Bytes())
+	if !strings.Contains(got, "SafeKeeping") {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func TestBinaryPDFDoesNotBecomeGarbageDocx(t *testing.T) {
+	src := append([]byte("%PDF-1.4\n<< /Length 40 >>\nstream\n"), bytes.Repeat([]byte{0x80, 0xff, 0x00}, 40)...)
+	src = append(src, []byte("\nendstream\n")...)
+	_, err := Convert(src, "x.pdf", "docx")
+	if err != ErrNoText {
+		t.Fatalf("got %v", err)
 	}
 }
 

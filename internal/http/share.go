@@ -64,7 +64,7 @@ func (h objectHandlers) revokeShare(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h objectHandlers) publicPage(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "web/share.html")
+	serveHTML("web/share.html")(w, r)
 }
 
 func (h objectHandlers) publicGet(w http.ResponseWriter, r *http.Request) {

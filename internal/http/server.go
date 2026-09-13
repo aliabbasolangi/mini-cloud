@@ -97,8 +97,6 @@ func New(store blob.Store, cat *catalog.DB, thumbs *thumb.Store, avatars *avatar
 		})
 	})
 
-	r.Get("/", func(w http.ResponseWriter, req *http.Request) {
-		http.ServeFile(w, req, "web/index.html")
-	})
+	r.Get("/", serveHTML("web/index.html"))
 	return r
 }

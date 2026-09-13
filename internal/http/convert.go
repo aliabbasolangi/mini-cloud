@@ -88,6 +88,10 @@ func (h objectHandlers) convert(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "that conversion is not supported yet — images, text, Word, and PDF work")
 		return
 	}
+	if errors.Is(err, convert.ErrNoText) {
+		writeError(w, http.StatusBadRequest, "this PDF does not have readable text to turn into Word")
+		return
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not convert this file")
 		return
@@ -180,6 +184,10 @@ func (h objectHandlers) convertRaw(w http.ResponseWriter, r *http.Request) {
 	out, err := convert.Convert(src, srcName, to)
 	if errors.Is(err, convert.ErrUnsupported) {
 		writeError(w, http.StatusBadRequest, "that conversion is not supported yet — images, text, Word, and PDF work")
+		return
+	}
+	if errors.Is(err, convert.ErrNoText) {
+		writeError(w, http.StatusBadRequest, "this PDF does not have readable text to turn into Word")
 		return
 	}
 	if err != nil {
