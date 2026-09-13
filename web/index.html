@@ -507,8 +507,29 @@
       padding: 12px 0; border-top: 1px solid var(--line);
     }
     .invite-item:first-child { border-top: 0; padding-top: 0; }
-    .folder-form { display: flex; gap: 8px; align-items: center; margin: 0 0 12px; }
-    .folder-form input { flex: 1; margin: 0; max-width: 280px; }
+    .folder-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 12px; }
+    .folder-form input[type="text"] { flex: 1; margin: 0; min-width: 160px; max-width: 280px; }
+    .folder-form select { margin: 0; width: auto; min-width: 148px; }
+    .folder-share-opt {
+      display: flex; align-items: center; gap: 8px;
+      margin: 0; color: var(--ink); font-size: 13px; font-weight: 500;
+    }
+    .folder-share-opt input { margin: 0; width: auto; }
+    .settings-page.wide { max-width: 720px; }
+    .share-card select { max-width: 320px; }
+    .share-card { margin-top: 22px; }
+    .share-card h3 { margin: 0 0 6px; font-size: 18px; }
+    .member-row, .pending-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 12px 0; border-top: 1px solid var(--line);
+    }
+    .member-row:first-child, .pending-row:first-child { border-top: 0; padding-top: 0; }
+    .member-row select { margin: 0; width: auto; }
+    .role-tag {
+      display: inline-block; margin-left: 6px; padding: 1px 7px;
+      border-radius: 99px; border: 1px solid var(--line);
+      color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: 0.02em;
+    }
     .overlay {
       position: fixed; inset: 0; background: rgba(10, 10, 14, 0.72);
       display: grid; place-items: center; padding: 20px; z-index: 20;
@@ -565,7 +586,7 @@
     }
     .estimate strong { color: var(--ink); }
     .hidden { display: none; }
-    #file { display: none; }
+    #file, #folder-pick { display: none; }
     .swatches { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 14px; }
     .swatch {
       width: 28px; height: 28px; border-radius: 50%;
@@ -728,6 +749,7 @@
           <button type="button" class="menu-item hidden" id="open-approvals">
             Approvals <span id="approval-badge" class="menu-badge hidden">0</span>
           </button>
+          <button type="button" class="menu-item" id="open-sharing">Sharing</button>
           <button type="button" class="menu-item" id="open-settings">Settings</button>
           <button type="button" class="menu-item" id="logout">Log out</button>
         </div>
@@ -815,6 +837,7 @@
 
     <section id="drive" class="hidden">
       <input id="file" type="file" />
+      <input id="folder-pick" type="file" webkitdirectory multiple />
       <div class="usage">
         <div id="usage-label">0 B / 5 GB used</div>
         <div class="usage-bar"><span id="usage-fill"></span></div>
@@ -829,11 +852,24 @@
         </div>
         <form id="invite-form" class="folder-form" style="margin:0">
           <input id="invite-email" type="email" placeholder="name@email.com" autocomplete="off" />
+          <select id="invite-role" title="Role for this person">
+            <option value="editor">Editor</option>
+            <option value="viewer">Viewer</option>
+          </select>
           <button type="submit">Invite</button>
         </form>
+        <button type="button" class="ghost small" id="open-folder-sharing">Manage people</button>
       </div>
       <form id="folder-form" class="folder-form hidden">
         <input id="folder-name" type="text" maxlength="80" placeholder="Folder name, e.g. photos" autocomplete="off" />
+        <label id="folder-share-row" class="folder-share-opt">
+          <input id="folder-share" type="checkbox" />
+          Shared folder
+        </label>
+        <select id="folder-default-role" class="hidden" title="Default role for new people">
+          <option value="editor">New people start as editors</option>
+          <option value="viewer">New people start as viewers</option>
+        </select>
         <button type="submit">Create</button>
         <button type="button" class="ghost small" id="folder-cancel">Cancel</button>
       </form>
@@ -846,7 +882,8 @@
             <button type="button" class="icon-btn" id="view-grid" title="Grid" aria-label="Grid"></button>
           </div>
           <div class="tool-group">
-            <button type="button" class="icon-btn" id="upload" title="Upload" aria-label="Upload"></button>
+            <button type="button" class="icon-btn" id="upload" title="Upload file" aria-label="Upload file"></button>
+            <button type="button" class="icon-btn" id="upload-folder" title="Upload folder" aria-label="Upload folder"></button>
           </div>
           <div class="tool-group">
             <button type="button" class="icon-btn" id="new-folder" title="New folder" aria-label="New folder"></button>
@@ -904,6 +941,15 @@
         <h2>Approvals</h2>
         <p class="lead">New people can sign up, but they cannot upload until you accept them.</p>
         <div id="approval-list"></div>
+      </div>
+    </section>
+
+    <section id="sharing" class="settings-page wide hidden">
+      <button type="button" class="ghost small settings-back" id="sharing-back">Back to files</button>
+      <div class="card">
+        <h2>Sharing</h2>
+        <p class="lead">Pending invites, who can see each shared folder, and what they can do.</p>
+        <div id="sharing-body">Loading…</div>
       </div>
     </section>
 
@@ -1360,12 +1406,39 @@
       pendingFile = null;
       pendingBlob = null;
       $("file").value = "";
+      if ($("folder-pick")) $("folder-pick").value = "";
+      $("upload-go").classList.remove("hidden");
+      $("estimate").classList.remove("hidden");
+      const title = document.querySelector("#upload-modal h2");
+      if (title) title.textContent = "Upload file";
       resetUploadProgress();
     }
 
+    function objectURL(key, share) {
+      if (share) return apiPath("collab/folders/" + share.id + "/objects", key);
+      return apiPath("objects", key);
+    }
+
+    async function uploadBlobToKey(key, body, share, onProgress) {
+      const headers = { Authorization: "Bearer " + token() };
+      let send = body;
+      if (!share && vaultDEK) {
+        if (onProgress) onProgress("encrypt", 0, true);
+        const enc = await encryptForUpload(body);
+        send = enc.body;
+        headers["X-Minicloud-Enc"] = "1";
+        headers["X-Minicloud-Wrap"] = enc.wrap;
+      }
+      return putWithProgress(objectURL(key, share), headers, send, (loaded, total) => {
+        if (onProgress) onProgress("upload", total ? loaded / total : 0, !total);
+      });
+    }
+
     async function confirmUpload() {
-      if (!canWrite()) {
-        $("modal-err").textContent = "This account is waiting for the owner to approve it";
+      if (!canVaultWrite()) {
+        $("modal-err").textContent = canWrite()
+          ? "Viewers can look, but they cannot upload"
+          : "This account is waiting for the owner to approve it";
         return;
       }
       const name = ($("upload-name").value || "").trim();
@@ -1379,20 +1452,9 @@
         if (!pendingBlob) await refreshEstimate();
         const body = pendingBlob || pendingFile;
         const key = currentPrefix + name;
-        const headers = { Authorization: "Bearer " + token() };
-        let send = body;
-        if (!currentShare && vaultDEK) {
-          $("upload-go").textContent = "Encrypting…";
-          showUploadProgress("Encrypting on this device…", 0, true);
-          const enc = await encryptForUpload(body);
-          send = enc.body;
-          headers["X-Minicloud-Enc"] = "1";
-          headers["X-Minicloud-Wrap"] = enc.wrap;
-        }
         $("upload-go").textContent = "Uploading…";
-        showUploadProgress("Uploading…", 0, false);
-        const res = await putWithProgress(fileAPI("objects", key), headers, send, (loaded, total) => {
-          showUploadProgress("Uploading…", total ? loaded / total : 0, !total);
+        const res = await uploadBlobToKey(key, body, currentShare, (kind, ratio, wait) => {
+          showUploadProgress(kind === "encrypt" ? "Encrypting on this device…" : "Uploading…", ratio, wait);
         });
         if (!res.ok) {
           $("modal-err").textContent = res.data.error || "Upload failed";
@@ -1410,6 +1472,112 @@
         $("upload-go").disabled = false;
         $("upload-go").textContent = "Upload";
       }
+    }
+
+    function skipUploadName(name) {
+      const base = (name || "").split("/").pop();
+      return !base || base === ".DS_Store" || base === "Thumbs.db" || base.startsWith("._");
+    }
+
+    function fileRelPath(file) {
+      return String(file.relativePath || file.webkitRelativePath || file.name || "")
+        .replace(/\\/g, "/")
+        .replace(/^\/+/, "");
+    }
+
+    async function createSharedFolder(name, defaultRole) {
+      const res = await fetch("/v1/collab/folders", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
+        body: JSON.stringify({ name, default_role: defaultRole || "editor" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not create shared folder");
+      return data;
+    }
+
+    async function uploadFileList(files, opts) {
+      const list = [...files].filter((f) => !skipUploadName(fileRelPath(f) || f.name));
+      if (!list.length) {
+        $("drive-err").textContent = "That folder did not have any files";
+        return;
+      }
+      if (!canVaultWrite() && !(opts && opts.share)) {
+        $("drive-err").textContent = canWrite()
+          ? "Viewers can look, but they cannot upload"
+          : "This account is waiting for the owner to approve it";
+        return;
+      }
+      $("drive-err").textContent = "";
+      $("upload-modal").classList.remove("hidden");
+      document.querySelector("#upload-modal h2").textContent = "Upload folder";
+      $("compress-row").classList.add("hidden");
+      $("mode-row").classList.add("hidden");
+      $("quality-row").classList.add("hidden");
+      $("estimate").classList.add("hidden");
+      $("upload-go").classList.add("hidden");
+      $("modal-err").textContent = "";
+      resetUploadProgress();
+      let share = (opts && opts.share) || currentShare;
+      let prefix = currentPrefix;
+      if (opts && opts.asShared) {
+        try {
+          share = await createSharedFolder(opts.folderName, opts.defaultRole);
+        } catch (err) {
+          $("modal-err").textContent = err.message || "Could not create shared folder";
+          $("upload-go").classList.remove("hidden");
+          return;
+        }
+        prefix = "";
+      }
+      let done = 0;
+      let failed = 0;
+      for (const file of list) {
+        const rel = fileRelPath(file);
+        const dest = opts && opts.asShared
+          ? rel.split("/").slice(1).join("/") || file.name
+          : prefix + rel;
+        if (!dest || dest.includes("..")) {
+          failed += 1;
+          continue;
+        }
+        showUploadProgress("Uploading " + dest + " (" + (done + 1) + "/" + list.length + ")", done / list.length, false);
+        try {
+          const res = await uploadBlobToKey(dest, file, share, () => {});
+          if (res.ok) done += 1;
+          else failed += 1;
+        } catch (_) {
+          failed += 1;
+        }
+      }
+      closeUploadModal();
+      $("upload-go").classList.remove("hidden");
+      $("estimate").classList.remove("hidden");
+      document.querySelector("#upload-modal h2").textContent = "Upload file";
+      if (opts && opts.asShared && share) openShare(share);
+      else refresh();
+      if (failed) $("drive-err").textContent = "Uploaded " + done + " files. " + failed + " did not make it.";
+    }
+
+    function startFolderUpload(files) {
+      const root = fileRelPath(files[0] || {}).split("/")[0] || "Folder";
+      if (currentShare) {
+        uploadFileList(files, {});
+        return;
+      }
+      $("confirm-title").textContent = "Upload “" + root + "”?";
+      $("confirm-text").textContent = "Keep it private in your vault, or make it a shared folder others can join. Shared folders are not encrypted. New people start as editors.";
+      $("confirm-ok").textContent = "Make it shared";
+      $("confirm-cancel").textContent = "Keep private";
+      $("confirm-modal").classList.remove("hidden");
+      $("confirm-ok").onclick = async () => {
+        closeConfirm();
+        await uploadFileList(files, { asShared: true, folderName: root, defaultRole: "editor" });
+      };
+      $("confirm-cancel").onclick = () => {
+        closeConfirm();
+        uploadFileList(files, {});
+      };
     }
 
     function clearThumbs() {
@@ -1517,6 +1685,7 @@
       upload: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V8"/><path d="M7 12l5-5 5 5"/><path d="M5 20h14"/></svg>',
       folder: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h6l2 2h10v10H3z"/><path d="M12 12v6"/><path d="M9 15h6"/></svg>',
       people: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M3 19c0-3 2.5-5 6-5s6 2 6 5"/><path d="M17 11a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"/><path d="M16 14c2.8.3 5 2.2 5 5"/></svg>',
+      uploadFolder: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h6l2 2h10v10H3z"/><path d="M12 18V11"/><path d="M9 13l3-3 3 3"/></svg>',
     };
 
     function paintIcon(id, kind) {
@@ -1763,16 +1932,32 @@
       return !!(profile && profile.approved);
     }
 
+    function shareRole() {
+      return (currentShare && currentShare.role) || "";
+    }
+
+    function canVaultWrite() {
+      return canWrite() && (!currentShare || shareRole() === "owner" || shareRole() === "editor");
+    }
+
+    function canInviteShare() {
+      return !!(currentShare && canVaultWrite());
+    }
+
+    function canManageShare() {
+      return !!(currentShare && canWrite() && shareRole() === "owner");
+    }
+
     function isOwner() {
       return !!(profile && profile.is_admin);
     }
 
     function applyAccess() {
-      const allowed = canWrite();
-      $("wait-banner").classList.toggle("hidden", allowed);
+      const allowed = canVaultWrite();
+      $("wait-banner").classList.toggle("hidden", canWrite());
       $("upload").closest(".tool-group").classList.toggle("hidden", !allowed);
       $("new-folder").closest(".tool-group").classList.toggle("hidden", !allowed);
-      $("invite-form").classList.toggle("hidden", !allowed);
+      $("invite-form").classList.toggle("hidden", !canInviteShare());
       $("open-approvals").classList.toggle("hidden", !isOwner());
       setPendingBadge(profile && profile.pending_count);
     }
@@ -1856,6 +2041,7 @@
       $("settings").classList.add("hidden");
       $("notifications").classList.add("hidden");
       $("approvals").classList.add("hidden");
+      $("sharing").classList.add("hidden");
     }
 
     function reduceMotion() {
@@ -1913,6 +2099,15 @@
         $("approvals").classList.remove("hidden");
       });
       loadApprovals();
+    }
+
+    function openSharing() {
+      closeAccountMenu();
+      swapPages(() => {
+        hidePages();
+        $("sharing").classList.remove("hidden");
+      });
+      loadSharing();
     }
 
     async function loadApprovals() {
@@ -2461,6 +2656,9 @@
     $("pfp").onclick = (e) => { e.stopPropagation(); toggleAccountMenu(); };
     $("open-settings").onclick = openSettings;
     $("settings-back").onclick = closeSettings;
+    $("open-sharing").onclick = openSharing;
+    $("sharing-back").onclick = closeSettings;
+    $("open-folder-sharing").onclick = openSharing;
     $("open-approvals").onclick = openApprovals;
     $("approvals-back").onclick = closeSettings;
     $("open-notifications").onclick = openNotifications;
@@ -2558,20 +2756,31 @@
     });
     $("view-list").onclick = () => setView("list");
     $("view-grid").onclick = () => setView("grid");
+    function syncFolderShareUI() {
+      const shared = !currentShare && $("folder-share").checked;
+      $("folder-share-row").classList.toggle("hidden", !!currentShare);
+      $("folder-default-role").classList.toggle("hidden", !shared);
+    }
     function openFolderForm(kind) {
-      if (!canWrite()) {
-        $("drive-err").textContent = "This account is waiting for the owner to approve it";
+      if (!canVaultWrite()) {
+        $("drive-err").textContent = canWrite()
+          ? "Viewers can look, but they cannot add folders"
+          : "This account is waiting for the owner to approve it";
         return;
       }
       folderIntent = kind;
       $("drive-err").textContent = "";
       $("folder-form").classList.remove("hidden");
       $("folder-name").value = "";
+      $("folder-share").checked = kind === "shared";
+      $("folder-default-role").value = "editor";
       $("folder-name").placeholder = kind === "shared"
         ? "Shared folder name, e.g. team files"
         : "Folder name, e.g. photos";
+      syncFolderShareUI();
       $("folder-name").focus();
     }
+    $("folder-share").onchange = syncFolderShareUI;
     $("new-folder").onclick = () => openFolderForm("normal");
     $("new-shared").onclick = () => openFolderForm("shared");
     $("folder-cancel").onclick = () => $("folder-form").classList.add("hidden");
@@ -2582,19 +2791,14 @@
         $("drive-err").textContent = name ? "Use a simple name, no slashes" : "Type a folder name first";
         return;
       }
+      const makeShared = !currentShare && (folderIntent === "shared" || $("folder-share").checked);
       $("folder-form").classList.add("hidden");
-      if (folderIntent === "shared") {
-        const res = await fetch("/v1/collab/folders", {
-          method: "POST",
-          headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
-          body: JSON.stringify({ name }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          $("drive-err").textContent = data.error || "Could not create shared folder";
-          return;
+      if (makeShared) {
+        try {
+          openShare(await createSharedFolder(name, $("folder-default-role").value));
+        } catch (err) {
+          $("drive-err").textContent = err.message || "Could not create shared folder";
         }
-        openShare(data);
         return;
       }
       if (currentShare) {
@@ -2622,7 +2826,7 @@
       const res = await fetch("/v1/collab/folders/" + currentShare.id + "/invites", {
         method: "POST",
         headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, role: $("invite-role").value }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -2631,7 +2835,7 @@
       }
       $("invite-email").value = "";
       $("share-banner").classList.remove("hidden");
-      $("share-banner").textContent = email + " will see the invite the next time they open SafeKeeping.";
+      $("share-banner").textContent = email + " will see the invite as a " + (data.role || "editor") + ".";
       loadCollabMembers();
     };
 
@@ -2644,6 +2848,8 @@
     function closeConfirm() {
       $("confirm-modal").classList.add("hidden");
       $("confirm-ok").onclick = null;
+      $("confirm-cancel").textContent = "Cancel";
+      $("confirm-cancel").onclick = closeConfirm;
     }
     $("confirm-cancel").onclick = closeConfirm;
     $("confirm-modal").addEventListener("click", (e) => {
@@ -2666,13 +2872,30 @@
     });
 
     $("upload").onclick = () => {
-      if (!canWrite()) {
-        $("drive-err").textContent = "This account is waiting for the owner to approve it";
+      if (!canVaultWrite()) {
+        $("drive-err").textContent = canWrite()
+          ? "Viewers can look, but they cannot upload"
+          : "This account is waiting for the owner to approve it";
         return;
       }
       $("file").click();
     };
+    $("upload-folder").onclick = () => {
+      if (!canVaultWrite()) {
+        $("drive-err").textContent = canWrite()
+          ? "Viewers can look, but they cannot upload"
+          : "This account is waiting for the owner to approve it";
+        return;
+      }
+      $("folder-pick").click();
+    };
     $("file").onchange = () => { if ($("file").files[0]) openUploadModal($("file").files[0]); };
+    $("folder-pick").onchange = () => {
+      const files = [...$("folder-pick").files];
+      $("folder-pick").value = "";
+      if (!files.length) return;
+      startFolderUpload(files);
+    };
 
     function driveOpen() {
       return $("drive") && !$("drive").classList.contains("hidden");
@@ -2687,7 +2910,7 @@
     }
     let fileDragDepth = 0;
     document.addEventListener("dragenter", (e) => {
-      if (!driveOpen() || !canWrite() || !isOsFileDrag(e)) return;
+      if (!driveOpen() || !canVaultWrite() || !isOsFileDrag(e)) return;
       e.preventDefault();
       fileDragDepth += 1;
       $("page-drop").classList.remove("hidden");
@@ -2702,14 +2925,61 @@
       fileDragDepth = Math.max(0, fileDragDepth - 1);
       if (fileDragDepth === 0) $("page-drop").classList.add("hidden");
     });
-    document.addEventListener("drop", (e) => {
+    document.addEventListener("drop", async (e) => {
       if (!isOsFileDrag(e)) return;
       e.preventDefault();
       hidePageDrop();
-      if (!driveOpen() || !canWrite()) return;
-      const file = e.dataTransfer.files[0];
-      if (file) openUploadModal(file);
+      if (!driveOpen() || !canVaultWrite()) return;
+      const files = await filesFromDrop(e.dataTransfer);
+      if (files.length > 1 || (files[0] && fileRelPath(files[0]).includes("/"))) {
+        startFolderUpload(files);
+        return;
+      }
+      if (files[0]) openUploadModal(files[0]);
     });
+
+    function readDirEntries(dir) {
+      return new Promise((resolve, reject) => {
+        const reader = dir.createReader();
+        const all = [];
+        const pump = () => {
+          reader.readEntries((entries) => {
+            if (!entries.length) return resolve(all);
+            all.push(...entries);
+            pump();
+          }, reject);
+        };
+        pump();
+      });
+    }
+
+    async function filesFromEntry(entry, prefix) {
+      if (entry.isFile) {
+        const file = await new Promise((res, rej) => entry.file(res, rej));
+        const rel = (prefix + entry.name).replace(/^\/+/, "");
+        try { Object.defineProperty(file, "relativePath", { value: rel }); } catch (_) {}
+        return skipUploadName(rel) ? [] : [file];
+      }
+      if (!entry.isDirectory) return [];
+      const kids = await readDirEntries(entry);
+      const out = [];
+      for (const kid of kids) out.push(...await filesFromEntry(kid, prefix + entry.name + "/"));
+      return out;
+    }
+
+    async function filesFromDrop(dt) {
+      const items = [...(dt.items || [])];
+      if (items.some((it) => it.webkitGetAsEntry && it.webkitGetAsEntry())) {
+        const out = [];
+        for (const it of items) {
+          const entry = it.webkitGetAsEntry && it.webkitGetAsEntry();
+          if (!entry) continue;
+          out.push(...await filesFromEntry(entry, ""));
+        }
+        if (out.length) return out;
+      }
+      return [...(dt.files || [])];
+    }
 
     function closePreview() {
       if (cueTimer) {
@@ -2930,7 +3200,7 @@
         fileInput.value = "";
         if (!file) return;
         useText(await file.text(), file.name);
-        if (canWrite()) {
+        if (canVaultWrite()) {
           const ok = await saveSrtBeside(f.key, file);
           if (ok) status.textContent = (status.textContent || "Subtitles") + " · saved beside this video";
         }
@@ -3133,7 +3403,13 @@
       mid.append(title, meta);
       const actions = document.createElement("div");
       actions.className = "row-actions";
-      if (canWrite()) {
+      if (!currentShare && canWrite()) {
+        actions.append(iconBtn("people", "Make this a shared folder", "share", (e) => {
+          e.stopPropagation();
+          askSharePersonalFolder(name);
+        }));
+      }
+      if (canVaultWrite()) {
         actions.append(iconBtn("trash", "Delete folder", "danger", (e) => {
           e.stopPropagation();
           askDeleteFolder(name);
@@ -3163,7 +3439,7 @@
       meta.className = "meta";
       meta.textContent = folder.role === "owner"
         ? "Shared folder · you own this"
-        : "Shared folder · " + (folder.owner_email || "invited");
+        : "Shared folder · " + roleLabel(folder.role) + " · " + (folder.owner_email || "invited");
       mid.append(title, meta);
       const actions = document.createElement("div");
       actions.className = "row-actions";
@@ -3211,7 +3487,7 @@
     function fileRow(f) {
       const k = kind(f.key);
       const li = document.createElement("li");
-      li.draggable = canWrite() && !isPhone();
+      li.draggable = canVaultWrite() && !isPhone();
       li.addEventListener("dragstart", (e) => {
         e.dataTransfer.setData(MOVE_TYPE, f.key);
         e.dataTransfer.setData("text/plain", f.key);
@@ -3248,19 +3524,97 @@
       const actions = document.createElement("div");
       actions.className = "row-actions";
       const actionsList = [];
-      if (canWrite()) {
+      if (canVaultWrite()) {
         actionsList.push(
           iconBtn("share", "Share", "share", () => shareFile(f.key)),
           iconBtn("convert", "Convert", "convert", () => openConvert(f.key)),
         );
       }
       actionsList.push(iconBtn("download", "Download", "download", () => download(f.key)));
-      if (canWrite()) {
+      if (canVaultWrite()) {
         actionsList.push(iconBtn("trash", "Delete", "danger", () => askDeleteFile(f)));
       }
       actions.append(...actionsList);
       li.append(icon, mid, actions);
       return li;
+    }
+
+    function roleLabel(role) {
+      if (role === "owner") return "owner";
+      if (role === "viewer") return "viewer";
+      return "editor";
+    }
+
+    async function readVaultBytes(f) {
+      const r = await fetch(apiPath("objects", f.key), {
+        headers: { Authorization: "Bearer " + token() },
+      });
+      if (!r.ok) throw new Error("could not read " + prettyName(f.key));
+      let bytes = new Uint8Array(await r.arrayBuffer());
+      if (isEncrypted(f)) bytes = await decryptDownload(bytes.buffer, f.enc_wrap);
+      return bytes;
+    }
+
+    function askSharePersonalFolder(name) {
+      const prefix = currentPrefix + name + "/";
+      askConfirm(
+        "Share “" + name + "”?",
+        "This copies the folder into a shared space. Shared folders are not encrypted. People you invite later start as editors.",
+        "Make it shared",
+        () => convertPersonalFolder(name, prefix),
+      );
+    }
+
+    async function convertPersonalFolder(name, prefix) {
+      $("drive-err").textContent = "";
+      const files = vaultFiles.filter((f) => f.key.startsWith(prefix));
+      if (files.some((f) => isEncrypted(f)) && !vaultDEK) {
+        $("drive-err").textContent = "Unlock the vault first so these files can be copied into a shared folder.";
+        return;
+      }
+      let folder;
+      try {
+        folder = await createSharedFolder(name, "editor");
+      } catch (err) {
+        $("drive-err").textContent = err.message || "Could not create shared folder";
+        return;
+      }
+      $("upload-modal").classList.remove("hidden");
+      document.querySelector("#upload-modal h2").textContent = "Sharing folder";
+      $("compress-row").classList.add("hidden");
+      $("mode-row").classList.add("hidden");
+      $("quality-row").classList.add("hidden");
+      $("estimate").classList.add("hidden");
+      $("upload-go").classList.add("hidden");
+      let done = 0;
+      let failed = 0;
+      for (const f of files) {
+        const rel = f.key.slice(prefix.length);
+        showUploadProgress("Copying " + rel + " (" + (done + 1) + "/" + files.length + ")", files.length ? done / files.length : 1, false);
+        try {
+          const bytes = await readVaultBytes(f);
+          const res = await uploadBlobToKey(rel, new Blob([bytes]), folder, () => {});
+          if (res.ok) done += 1;
+          else failed += 1;
+        } catch (_) {
+          failed += 1;
+        }
+      }
+      if (!failed) {
+        await fetch("/v1/folders/delete", {
+          method: "POST",
+          headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
+          body: JSON.stringify({ prefix }),
+        });
+        forgetFolder(prefix);
+      }
+      closeUploadModal();
+      if (failed) {
+        $("drive-err").textContent = "Shared folder created, but " + failed + " files did not copy. The originals are still in your vault.";
+        refresh();
+        return;
+      }
+      openShare(folder);
     }
 
     async function loadCollabMembers() {
@@ -3270,11 +3624,209 @@
       });
       if (!res.ok) return;
       const data = await res.json();
-      const names = (data.members || []).map((m) => m.display_name || m.email);
+      const names = (data.members || []).map((m) => (m.display_name || m.email) + " (" + roleLabel(m.role) + ")");
       $("collab-name").textContent = currentShare.name;
       $("collab-members").textContent = names.length
         ? names.join(" · ")
         : "Invite people by email";
+      if (currentShare.default_role) $("invite-role").value = currentShare.default_role;
+      applyAccess();
+    }
+
+    async function loadSharing() {
+      const box = $("sharing-body");
+      box.textContent = "Loading…";
+      const res = await fetch("/v1/collab/dashboard", { headers: { Authorization: "Bearer " + token() } });
+      if (!res.ok) {
+        box.textContent = "Could not load sharing.";
+        return;
+      }
+      const data = await res.json();
+      box.innerHTML = "";
+      const incoming = data.incoming || [];
+      const inCard = document.createElement("div");
+      const inTitle = document.createElement("h3");
+      inTitle.textContent = "Pending invitations";
+      const inLead = document.createElement("p");
+      inLead.className = "lead";
+      inLead.textContent = incoming.length
+        ? "Folders waiting for you."
+        : "No one is waiting on you right now.";
+      inCard.append(inTitle, inLead);
+      for (const inv of incoming) {
+        const row = document.createElement("div");
+        row.className = "pending-row";
+        const mid = document.createElement("div");
+        const strong = document.createElement("strong");
+        strong.textContent = inv.folder_name;
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        meta.textContent = (inv.invited_by || "Someone") + " invited you as a " + roleLabel(inv.role);
+        mid.append(strong, meta);
+        const actions = document.createElement("div");
+        actions.className = "actions";
+        const yes = document.createElement("button");
+        yes.type = "button";
+        yes.textContent = "Accept";
+        yes.onclick = async () => {
+          const done = await fetch("/v1/collab/invites/" + inv.id + "/accept", {
+            method: "POST",
+            headers: { Authorization: "Bearer " + token() },
+          });
+          const folder = await done.json().catch(() => ({}));
+          if (done.ok) {
+            closeSettings();
+            openShare(folder);
+          } else loadSharing();
+        };
+        const no = document.createElement("button");
+        no.type = "button";
+        no.className = "ghost";
+        no.textContent = "Decline";
+        no.onclick = async () => {
+          await fetch("/v1/collab/invites/" + inv.id + "/decline", {
+            method: "POST",
+            headers: { Authorization: "Bearer " + token() },
+          });
+          loadSharing();
+        };
+        actions.append(yes, no);
+        row.append(mid, actions);
+        inCard.append(row);
+      }
+      box.append(inCard);
+      const folders = data.folders || [];
+      if (!folders.length) {
+        const empty = document.createElement("p");
+        empty.className = "lead";
+        empty.textContent = "No shared folders yet. Make a new one, or upload a folder and share it.";
+        box.append(empty);
+        return;
+      }
+      for (const folder of folders) {
+        const card = document.createElement("div");
+        card.className = "share-card";
+        const h = document.createElement("h3");
+        h.textContent = folder.name;
+        const lead = document.createElement("p");
+        lead.className = "lead";
+        lead.textContent = folder.role === "owner"
+          ? "You own this. New people start as " + roleLabel(folder.default_role) + "s."
+          : "You are a " + roleLabel(folder.role) + " here.";
+        card.append(h, lead);
+        if (folder.role === "owner") {
+          const roleRow = document.createElement("label");
+          roleRow.textContent = "Default role for new invites";
+          const sel = document.createElement("select");
+          sel.innerHTML = '<option value="editor">Editor — can add and change files</option><option value="viewer">Viewer — can only look</option>';
+          sel.value = folder.default_role || "editor";
+          sel.onchange = async () => {
+            await fetch("/v1/collab/folders/" + folder.id, {
+              method: "PATCH",
+              headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
+              body: JSON.stringify({ default_role: sel.value }),
+            });
+            loadSharing();
+          };
+          card.append(roleRow, sel);
+        }
+        const people = document.createElement("div");
+        for (const m of folder.members || []) {
+          const row = document.createElement("div");
+          row.className = "member-row";
+          const mid = document.createElement("div");
+          const strong = document.createElement("strong");
+          strong.textContent = m.display_name || m.email;
+          const meta = document.createElement("div");
+          meta.className = "meta";
+          meta.textContent = m.email;
+          mid.append(strong, meta);
+          const actions = document.createElement("div");
+          actions.className = "actions";
+          if (m.is_owner || folder.role !== "owner") {
+            const tag = document.createElement("span");
+            tag.className = "role-tag";
+            tag.textContent = roleLabel(m.role);
+            actions.append(tag);
+          } else {
+            const sel = document.createElement("select");
+            sel.innerHTML = '<option value="editor">Editor</option><option value="viewer">Viewer</option>';
+            sel.value = m.role === "viewer" ? "viewer" : "editor";
+            sel.onchange = async () => {
+              await fetch("/v1/collab/folders/" + folder.id + "/members/" + m.user_id, {
+                method: "PATCH",
+                headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
+                body: JSON.stringify({ role: sel.value }),
+              });
+              loadSharing();
+            };
+            const kick = document.createElement("button");
+            kick.type = "button";
+            kick.className = "danger";
+            kick.textContent = "Remove";
+            kick.onclick = () => {
+              askConfirm(
+                "Remove this person?",
+                "They will lose access to “" + folder.name + "” until someone invites them again.",
+                "Remove",
+                async () => {
+                  await fetch("/v1/collab/folders/" + folder.id + "/members/" + m.user_id, {
+                    method: "DELETE",
+                    headers: { Authorization: "Bearer " + token() },
+                  });
+                  loadSharing();
+                },
+              );
+            };
+            actions.append(sel, kick);
+          }
+          row.append(mid, actions);
+          people.append(row);
+        }
+        card.append(people);
+        const pending = folder.pending || [];
+        if (pending.length) {
+          const pendTitle = document.createElement("p");
+          pendTitle.className = "lead";
+          pendTitle.textContent = "Waiting to accept";
+          card.append(pendTitle);
+          for (const inv of pending) {
+            const row = document.createElement("div");
+            row.className = "pending-row";
+            const mid = document.createElement("div");
+            mid.innerHTML = "<strong></strong><div class='meta'></div>";
+            mid.querySelector("strong").textContent = inv.email;
+            mid.querySelector(".meta").textContent = "Invited as " + roleLabel(inv.role);
+            if (folder.role === "owner" || folder.role === "editor") {
+              const cancel = document.createElement("button");
+              cancel.type = "button";
+              cancel.className = "ghost small";
+              cancel.textContent = "Cancel";
+              cancel.onclick = async () => {
+                await fetch("/v1/collab/folders/" + folder.id + "/invites/" + inv.id, {
+                  method: "DELETE",
+                  headers: { Authorization: "Bearer " + token() },
+                });
+                loadSharing();
+              };
+              row.append(mid, cancel);
+            } else {
+              row.append(mid);
+            }
+            card.append(row);
+          }
+        }
+        const open = document.createElement("button");
+        open.type = "button";
+        open.className = "ghost small";
+        open.textContent = "Open folder";
+        open.onclick = () => {
+          closeSettings();
+          openShare(folder);
+        };
+        card.append(open);
+        box.append(card);
+      }
     }
 
     async function loadNotifications() {
@@ -3372,6 +3924,7 @@
       $("usage-fill").style.width = Math.min(100, (used / limit) * 100) + "%";
       $("collab-bar").classList.toggle("hidden", !currentShare);
       $("new-shared").classList.toggle("hidden", !!currentShare);
+      applyAccess();
       if (currentShare) loadCollabMembers();
 
       let files = [];
@@ -3415,7 +3968,7 @@
       }
       const empty = !shared.length && !view.folders.length && !view.files.length;
       if (empty) {
-        list.innerHTML = "<li class='empty' style='display:block;grid-column:1/-1'>Nothing here yet. Use Upload, New folder, or New shared folder.</li>";
+        list.innerHTML = "<li class='empty' style='display:block;grid-column:1/-1'>Nothing here yet. Upload a file or a folder, or make a new folder.</li>";
         return;
       }
       let delay = 0;
@@ -3433,6 +3986,7 @@
     paintIcon("view-list", "list");
     paintIcon("view-grid", "grid");
     paintIcon("upload", "upload");
+    paintIcon("upload-folder", "uploadFolder");
     paintIcon("new-folder", "folder");
     paintIcon("new-shared", "people");
     $("remember-me").checked = localStorage.getItem(rememberKey) === "1";

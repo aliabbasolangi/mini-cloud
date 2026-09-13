@@ -58,6 +58,10 @@ func Open(path string) (*DB, error) {
 		_ = sqlDB.Close()
 		return nil, fmt.Errorf("migrate approval: %w", err)
 	}
+	if err := migrateCollabRoles(sqlDB); err != nil {
+		_ = sqlDB.Close()
+		return nil, fmt.Errorf("migrate collab roles: %w", err)
+	}
 	return &DB{SQL: sqlDB}, nil
 }
 
@@ -205,6 +209,21 @@ UPDATE users SET is_admin = 1
 WHERE id = (SELECT id FROM users ORDER BY created_at ASC, id ASC LIMIT 1)
 `)
 	return err
+}
+
+func migrateCollabRoles(sqlDB *sql.DB) error {
+	for _, stmt := range []string{
+		`ALTER TABLE collab_folders ADD COLUMN default_role TEXT NOT NULL DEFAULT 'editor'`,
+		`ALTER TABLE collab_members ADD COLUMN role TEXT NOT NULL DEFAULT 'editor'`,
+		`ALTER TABLE collab_invites ADD COLUMN role TEXT NOT NULL DEFAULT 'editor'`,
+	} {
+		if _, err := sqlDB.Exec(stmt); err != nil {
+			if !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func migrateEmailCodes(sqlDB *sql.DB) error {

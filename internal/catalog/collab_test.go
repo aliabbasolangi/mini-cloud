@@ -23,15 +23,18 @@ func TestCollabInviteAndAccess(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	folder, err := db.CreateCollabFolder(ctx, owner.ID, "Thesis")
+	folder, err := db.CreateCollabFolder(ctx, owner.ID, "Thesis", CollabRoleViewer)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if folder.DefaultRole != CollabRoleViewer {
+		t.Fatalf("default role %q", folder.DefaultRole)
 	}
 	if _, err := db.CollabAccess(ctx, guest.ID, folder.ID); err != ErrCollabDenied {
 		t.Fatalf("guest should not see it yet: %v", err)
 	}
 
-	inv, err := db.InviteToFolder(ctx, owner.ID, folder.ID, "sam@example.com")
+	inv, err := db.InviteToFolder(ctx, owner.ID, folder.ID, "sam@example.com", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,8 +49,14 @@ func TestCollabInviteAndAccess(t *testing.T) {
 	}
 
 	opened, err := db.AcceptInvite(ctx, inv.ID, guest.ID, guest.Email)
-	if err != nil || opened.Role != CollabRoleEditor {
+	if err != nil || opened.Role != CollabRoleViewer {
 		t.Fatalf("accept %v %+v", err, opened)
+	}
+	if err := db.SetMemberRole(ctx, owner.ID, folder.ID, guest.ID, CollabRoleEditor); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := db.CollabAccess(ctx, guest.ID, folder.ID); err != nil || got.Role != CollabRoleEditor {
+		t.Fatalf("promoted %v %+v", err, got)
 	}
 	ownerNotes, err := db.ListNotifications(ctx, owner.ID)
 	if err != nil || len(ownerNotes) != 1 || ownerNotes[0].Kind != NotifInviteAccepted {

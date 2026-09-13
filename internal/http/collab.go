@@ -28,18 +28,47 @@ func (h objectHandlers) requireCollab(w http.ResponseWriter, r *http.Request) *c
 	return folder
 }
 
+func (h objectHandlers) requireCollabWrite(w http.ResponseWriter, r *http.Request) *catalog.CollabFolder {
+	folder := h.requireCollab(w, r)
+	if folder == nil {
+		return nil
+	}
+	if !catalog.CanCollabWrite(folder.Role) {
+		writeError(w, http.StatusForbidden, "viewers can look, but they cannot change this folder")
+		return nil
+	}
+	return folder
+}
+
+func (h objectHandlers) requireCollabOwner(w http.ResponseWriter, r *http.Request) *catalog.CollabFolder {
+	folder := h.requireCollab(w, r)
+	if folder == nil {
+		return nil
+	}
+	if !catalog.CanCollabManage(folder.Role) {
+		writeError(w, http.StatusForbidden, "only the owner can do that")
+		return nil
+	}
+	return folder
+}
+
 func (h objectHandlers) createCollabFolder(w http.ResponseWriter, r *http.Request) {
 	limitBody(w, r, 1<<16)
 	var req struct {
-		Name string `json:"name"`
+		Name        string `json:"name"`
+		DefaultRole string `json:"default_role"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "send a folder name as JSON")
 		return
 	}
-	folder, err := h.catalog.CreateCollabFolder(r.Context(), userIDFrom(r.Context()), req.Name)
+	folder, err := h.catalog.CreateCollabFolder(r.Context(), userIDFrom(r.Context()), req.Name, req.DefaultRole)
 	if errors.Is(err, catalog.ErrCollabName) {
 		writeError(w, http.StatusBadRequest, "use a simple folder name, no slashes")
+		return
+	}
+	if errors.Is(err, catalog.ErrBadCollabRole) {
+		writeError(w, http.StatusBadRequest, "default role must be editor or viewer")
 		return
 	}
 	if err != nil {
@@ -47,6 +76,34 @@ func (h objectHandlers) createCollabFolder(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	writeJSON(w, http.StatusCreated, collabFolderJSON(folder))
+}
+
+func (h objectHandlers) patchCollabFolder(w http.ResponseWriter, r *http.Request) {
+	if h.requireCollabOwner(w, r) == nil {
+		return
+	}
+	limitBody(w, r, 1<<16)
+	var req struct {
+		DefaultRole string `json:"default_role"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "send default_role as JSON")
+		return
+	}
+	folder, err := h.catalog.SetFolderDefaultRole(r.Context(), userIDFrom(r.Context()), chi.URLParam(r, "id"), req.DefaultRole)
+	if errors.Is(err, catalog.ErrBadCollabRole) {
+		writeError(w, http.StatusBadRequest, "default role must be editor or viewer")
+		return
+	}
+	if errors.Is(err, catalog.ErrCollabDenied) {
+		writeError(w, http.StatusForbidden, "only the owner can do that")
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not update shared folder")
+		return
+	}
+	writeJSON(w, http.StatusOK, collabFolderJSON(folder))
 }
 
 func (h objectHandlers) listCollabFolders(w http.ResponseWriter, r *http.Request) {
@@ -94,32 +151,156 @@ func (h objectHandlers) leaveCollabFolder(w http.ResponseWriter, r *http.Request
 
 func (h objectHandlers) inviteCollab(w http.ResponseWriter, r *http.Request) {
 	limitBody(w, r, 1<<16)
-	if h.requireCollab(w, r) == nil {
+	if h.requireCollabWrite(w, r) == nil {
 		return
 	}
 	var req struct {
 		Email string `json:"email"`
+		Role  string `json:"role"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "send an email as JSON")
 		return
 	}
-	inv, err := h.catalog.InviteToFolder(r.Context(), userIDFrom(r.Context()), chi.URLParam(r, "id"), req.Email)
+	inv, err := h.catalog.InviteToFolder(r.Context(), userIDFrom(r.Context()), chi.URLParam(r, "id"), req.Email, req.Role)
 	switch {
 	case errors.Is(err, catalog.ErrCannotInviteSelf), errors.Is(err, catalog.ErrAlreadyMember):
 		writeError(w, http.StatusConflict, err.Error())
 	case errors.Is(err, catalog.ErrUserNotFound):
 		writeError(w, http.StatusBadRequest, "need a real email")
+	case errors.Is(err, catalog.ErrBadCollabRole):
+		writeError(w, http.StatusBadRequest, "role must be editor or viewer")
+	case errors.Is(err, catalog.ErrCollabDenied):
+		writeError(w, http.StatusForbidden, "viewers cannot invite people")
 	case err != nil:
 		writeError(w, http.StatusInternalServerError, "could not send invite")
 	default:
 		writeJSON(w, http.StatusCreated, map[string]string{
 			"id":      inv.ID,
 			"email":   inv.Email,
+			"role":    inv.Role,
 			"folder":  inv.FolderName,
 			"message": "They will see the invite the next time they open SafeKeeping.",
 		})
 	}
+}
+
+func (h objectHandlers) listFolderInvites(w http.ResponseWriter, r *http.Request) {
+	folder := h.requireCollabWrite(w, r)
+	if folder == nil {
+		return
+	}
+	invites, err := h.catalog.ListFolderInvites(r.Context(), folder.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not load invites")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"invites": inviteListJSON(invites)})
+}
+
+func (h objectHandlers) cancelFolderInvite(w http.ResponseWriter, r *http.Request) {
+	if h.requireCollabWrite(w, r) == nil {
+		return
+	}
+	err := h.catalog.CancelInvite(r.Context(), userIDFrom(r.Context()), chi.URLParam(r, "id"), chi.URLParam(r, "inviteID"))
+	if errors.Is(err, catalog.ErrInviteNotFound) {
+		writeError(w, http.StatusNotFound, "invite not found")
+		return
+	}
+	if errors.Is(err, catalog.ErrCollabDenied) {
+		writeError(w, http.StatusForbidden, "you cannot cancel that invite")
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not cancel invite")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h objectHandlers) patchCollabMember(w http.ResponseWriter, r *http.Request) {
+	if h.requireCollabOwner(w, r) == nil {
+		return
+	}
+	limitBody(w, r, 1<<16)
+	var req struct {
+		Role string `json:"role"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "send a role as JSON")
+		return
+	}
+	err := h.catalog.SetMemberRole(r.Context(), userIDFrom(r.Context()), chi.URLParam(r, "id"), chi.URLParam(r, "userID"), req.Role)
+	switch {
+	case errors.Is(err, catalog.ErrBadCollabRole):
+		writeError(w, http.StatusBadRequest, "role must be editor or viewer")
+	case errors.Is(err, catalog.ErrCollabDenied):
+		writeError(w, http.StatusForbidden, "you cannot change that person's role")
+	case err != nil:
+		writeError(w, http.StatusInternalServerError, "could not change role")
+	default:
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func (h objectHandlers) removeCollabMember(w http.ResponseWriter, r *http.Request) {
+	if h.requireCollabOwner(w, r) == nil {
+		return
+	}
+	err := h.catalog.RemoveCollabMember(r.Context(), userIDFrom(r.Context()), chi.URLParam(r, "id"), chi.URLParam(r, "userID"))
+	if errors.Is(err, catalog.ErrCollabDenied) {
+		writeError(w, http.StatusForbidden, "you cannot remove that person")
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not remove that person")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h objectHandlers) collabDashboard(w http.ResponseWriter, r *http.Request) {
+	me, err := h.catalog.UserByID(r.Context(), userIDFrom(r.Context()))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not load sharing")
+		return
+	}
+	incoming, err := h.catalog.PendingInvites(r.Context(), me.Email)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not load invites")
+		return
+	}
+	folders, err := h.catalog.ListCollabFolders(r.Context(), me.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not load shared folders")
+		return
+	}
+	out := make([]map[string]any, 0, len(folders))
+	for i := range folders {
+		f := &folders[i]
+		members, err := h.catalog.ListCollabMembers(r.Context(), f.ID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "could not load people")
+			return
+		}
+		item := collabFolderJSON(f)
+		item["members"] = memberListJSON(members)
+		if catalog.CanCollabWrite(f.Role) {
+			pending, err := h.catalog.ListFolderInvites(r.Context(), f.ID)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "could not load invites")
+				return
+			}
+			item["pending"] = inviteListJSON(pending)
+		} else {
+			item["pending"] = []map[string]string{}
+		}
+		out = append(out, item)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"incoming": inviteListJSON(incoming),
+		"folders":  out,
+	})
 }
 
 func (h objectHandlers) listCollabInvites(w http.ResponseWriter, r *http.Request) {
@@ -133,16 +314,7 @@ func (h objectHandlers) listCollabInvites(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusInternalServerError, "could not load invites")
 		return
 	}
-	out := make([]map[string]string, 0, len(invites))
-	for _, inv := range invites {
-		out = append(out, map[string]string{
-			"id":           inv.ID,
-			"folder_id":    inv.FolderID,
-			"folder_name":  inv.FolderName,
-			"invited_by":   inv.InviterName,
-		})
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"invites": out})
+	writeJSON(w, http.StatusOK, map[string]any{"invites": inviteListJSON(invites)})
 }
 
 func (h objectHandlers) acceptCollabInvite(w http.ResponseWriter, r *http.Request) {
@@ -190,20 +362,7 @@ func (h objectHandlers) listCollabMembers(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusInternalServerError, "could not list people")
 		return
 	}
-	out := make([]map[string]any, 0, len(members))
-	for _, m := range members {
-		name := m.DisplayName
-		if name == "" {
-			name = m.Email
-		}
-		out = append(out, map[string]any{
-			"user_id":      m.UserID,
-			"email":        m.Email,
-			"display_name": name,
-			"is_owner":     m.IsOwner,
-		})
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"members": out})
+	writeJSON(w, http.StatusOK, map[string]any{"members": memberListJSON(members)})
 }
 
 func (h objectHandlers) listCollabObjects(w http.ResponseWriter, r *http.Request) {
@@ -238,7 +397,7 @@ func (h objectHandlers) listCollabObjects(w http.ResponseWriter, r *http.Request
 }
 
 func (h objectHandlers) collabPut(w http.ResponseWriter, r *http.Request) {
-	folder := h.requireCollab(w, r)
+	folder := h.requireCollabWrite(w, r)
 	if folder == nil {
 		return
 	}
@@ -315,7 +474,7 @@ func (h objectHandlers) collabGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h objectHandlers) collabDel(w http.ResponseWriter, r *http.Request) {
-	folder := h.requireCollab(w, r)
+	folder := h.requireCollabWrite(w, r)
 	if folder == nil {
 		return
 	}
@@ -379,7 +538,7 @@ func (h objectHandlers) collabPreview(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h objectHandlers) collabMove(w http.ResponseWriter, r *http.Request) {
-	folder := h.requireCollab(w, r)
+	folder := h.requireCollabWrite(w, r)
 	if folder == nil {
 		return
 	}
@@ -418,7 +577,7 @@ func (h objectHandlers) collabMove(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h objectHandlers) collabMkdir(w http.ResponseWriter, r *http.Request) {
-	folder := h.requireCollab(w, r)
+	folder := h.requireCollabWrite(w, r)
 	if folder == nil {
 		return
 	}
@@ -445,7 +604,7 @@ func (h objectHandlers) collabMkdir(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h objectHandlers) collabRmDir(w http.ResponseWriter, r *http.Request) {
-	folder := h.requireCollab(w, r)
+	folder := h.requireCollabWrite(w, r)
 	if folder == nil {
 		return
 	}
@@ -474,7 +633,7 @@ func (h objectHandlers) collabRmDir(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h objectHandlers) collabShare(w http.ResponseWriter, r *http.Request) {
-	folder := h.requireCollab(w, r)
+	folder := h.requireCollabWrite(w, r)
 	if folder == nil {
 		return
 	}
@@ -514,9 +673,43 @@ func (h objectHandlers) collabShare(w http.ResponseWriter, r *http.Request) {
 
 func collabFolderJSON(f *catalog.CollabFolder) map[string]any {
 	return map[string]any{
-		"id":          f.ID,
-		"name":        f.Name,
-		"role":        f.Role,
-		"owner_email": f.OwnerEmail,
+		"id":           f.ID,
+		"name":         f.Name,
+		"role":         f.Role,
+		"default_role": f.DefaultRole,
+		"owner_email":  f.OwnerEmail,
 	}
+}
+
+func memberListJSON(members []catalog.CollabMember) []map[string]any {
+	out := make([]map[string]any, 0, len(members))
+	for _, m := range members {
+		name := m.DisplayName
+		if name == "" {
+			name = m.Email
+		}
+		out = append(out, map[string]any{
+			"user_id":      m.UserID,
+			"email":        m.Email,
+			"display_name": name,
+			"role":         m.Role,
+			"is_owner":     m.IsOwner,
+		})
+	}
+	return out
+}
+
+func inviteListJSON(invites []catalog.CollabInvite) []map[string]string {
+	out := make([]map[string]string, 0, len(invites))
+	for _, inv := range invites {
+		out = append(out, map[string]string{
+			"id":          inv.ID,
+			"folder_id":   inv.FolderID,
+			"folder_name": inv.FolderName,
+			"email":       inv.Email,
+			"role":        inv.Role,
+			"invited_by":  inv.InviterName,
+		})
+	}
+	return out
 }

@@ -15,6 +15,7 @@ const (
 	InviteDeclined   = "declined"
 	CollabRoleOwner  = "owner"
 	CollabRoleEditor = "editor"
+	CollabRoleViewer = "viewer"
 )
 
 var (
@@ -25,15 +26,17 @@ var (
 	ErrInviteNotFound   = errors.New("invite not found")
 	ErrInviteWrongEmail = errors.New("this invite is for a different email")
 	ErrCannotInviteSelf = errors.New("you are already in this folder")
+	ErrBadCollabRole    = errors.New("role must be editor or viewer")
 )
 
 type CollabFolder struct {
-	ID         string
-	OwnerID    string
-	Name       string
-	Role       string
-	OwnerEmail string
-	CreatedAt  time.Time
+	ID          string
+	OwnerID     string
+	Name        string
+	Role        string
+	DefaultRole string
+	OwnerEmail  string
+	CreatedAt   time.Time
 }
 
 type CollabInvite struct {
@@ -43,6 +46,7 @@ type CollabInvite struct {
 	Email       string
 	InvitedBy   string
 	InviterName string
+	Role        string
 	Status      string
 	CreatedAt   time.Time
 }
@@ -51,7 +55,27 @@ type CollabMember struct {
 	UserID      string
 	Email       string
 	DisplayName string
+	Role        string
 	IsOwner     bool
+}
+
+func NormalizeMemberRole(role string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(role)) {
+	case "", CollabRoleEditor:
+		return CollabRoleEditor, nil
+	case CollabRoleViewer:
+		return CollabRoleViewer, nil
+	default:
+		return "", ErrBadCollabRole
+	}
+}
+
+func CanCollabWrite(role string) bool {
+	return role == CollabRoleOwner || role == CollabRoleEditor
+}
+
+func CanCollabManage(role string) bool {
+	return role == CollabRoleOwner
 }
 
 func CollabObjectKey(folderID, rel string) string {
@@ -74,23 +98,28 @@ func NormalizeCollabName(name string) (string, error) {
 	return name, nil
 }
 
-func (db *DB) CreateCollabFolder(ctx context.Context, ownerID, name string) (*CollabFolder, error) {
+func (db *DB) CreateCollabFolder(ctx context.Context, ownerID, name, defaultRole string) (*CollabFolder, error) {
 	name, err := NormalizeCollabName(name)
+	if err != nil {
+		return nil, err
+	}
+	defaultRole, err = NormalizeMemberRole(defaultRole)
 	if err != nil {
 		return nil, err
 	}
 	now := time.Now().UTC()
 	f := &CollabFolder{
-		ID:        newID(),
-		OwnerID:   ownerID,
-		Name:      name,
-		Role:      CollabRoleOwner,
-		CreatedAt: now,
+		ID:          newID(),
+		OwnerID:     ownerID,
+		Name:        name,
+		Role:        CollabRoleOwner,
+		DefaultRole: defaultRole,
+		CreatedAt:   now,
 	}
 	_, err = db.SQL.ExecContext(ctx, `
-INSERT INTO collab_folders (id, owner_id, name, created_at)
-VALUES (?, ?, ?, ?)
-`, f.ID, f.OwnerID, f.Name, now.Format(time.RFC3339))
+INSERT INTO collab_folders (id, owner_id, name, created_at, default_role)
+VALUES (?, ?, ?, ?, ?)
+`, f.ID, f.OwnerID, f.Name, now.Format(time.RFC3339), f.DefaultRole)
 	if err != nil {
 		return nil, err
 	}
@@ -106,17 +135,20 @@ func (db *DB) CollabAccess(ctx context.Context, userID, folderID string) (*Colla
 		f.Role = CollabRoleOwner
 		return f, nil
 	}
-	var n int
+	var role string
 	err = db.SQL.QueryRowContext(ctx, `
-SELECT COUNT(*) FROM collab_members WHERE folder_id = ? AND user_id = ?
-`, folderID, userID).Scan(&n)
+SELECT role FROM collab_members WHERE folder_id = ? AND user_id = ?
+`, folderID, userID).Scan(&role)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrCollabDenied
+	}
 	if err != nil {
 		return nil, err
 	}
-	if n == 0 {
-		return nil, ErrCollabDenied
+	if role == "" {
+		role = CollabRoleEditor
 	}
-	f.Role = CollabRoleEditor
+	f.Role = role
 	return f, nil
 }
 
@@ -124,16 +156,19 @@ func (db *DB) collabByID(ctx context.Context, folderID string) (*CollabFolder, e
 	f := &CollabFolder{ID: folderID}
 	var created string
 	err := db.SQL.QueryRowContext(ctx, `
-SELECT f.owner_id, f.name, f.created_at, u.email
+SELECT f.owner_id, f.name, f.created_at, f.default_role, u.email
 FROM collab_folders f
 JOIN users u ON u.id = f.owner_id
 WHERE f.id = ?
-`, folderID).Scan(&f.OwnerID, &f.Name, &created, &f.OwnerEmail)
+`, folderID).Scan(&f.OwnerID, &f.Name, &created, &f.DefaultRole, &f.OwnerEmail)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrCollabNotFound
 	}
 	if err != nil {
 		return nil, err
+	}
+	if f.DefaultRole == "" {
+		f.DefaultRole = CollabRoleEditor
 	}
 	f.CreatedAt, _ = time.Parse(time.RFC3339, created)
 	return f, nil
@@ -141,14 +176,15 @@ WHERE f.id = ?
 
 func (db *DB) ListCollabFolders(ctx context.Context, userID string) ([]CollabFolder, error) {
 	rows, err := db.SQL.QueryContext(ctx, `
-SELECT f.id, f.owner_id, f.name, f.created_at, u.email,
-	CASE WHEN f.owner_id = ? THEN 'owner' ELSE 'editor' END
+SELECT f.id, f.owner_id, f.name, f.created_at, f.default_role, u.email,
+	CASE WHEN f.owner_id = ? THEN 'owner' ELSE COALESCE(NULLIF(m.role, ''), 'editor') END
 FROM collab_folders f
 JOIN users u ON u.id = f.owner_id
+LEFT JOIN collab_members m ON m.folder_id = f.id AND m.user_id = ?
 WHERE f.owner_id = ?
    OR f.id IN (SELECT folder_id FROM collab_members WHERE user_id = ?)
 ORDER BY f.name
-`, userID, userID, userID)
+`, userID, userID, userID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +194,7 @@ ORDER BY f.name
 	for rows.Next() {
 		var created string
 		var f CollabFolder
-		if err := rows.Scan(&f.ID, &f.OwnerID, &f.Name, &created, &f.OwnerEmail, &f.Role); err != nil {
+		if err := rows.Scan(&f.ID, &f.OwnerID, &f.Name, &created, &f.DefaultRole, &f.OwnerEmail, &f.Role); err != nil {
 			return nil, err
 		}
 		f.CreatedAt, _ = time.Parse(time.RFC3339, created)
@@ -182,8 +218,18 @@ func (db *DB) DeleteCollabFolder(ctx context.Context, userID, folderID string) e
 	return err
 }
 
-func (db *DB) InviteToFolder(ctx context.Context, userID, folderID, email string) (*CollabInvite, error) {
+func (db *DB) InviteToFolder(ctx context.Context, userID, folderID, email, role string) (*CollabInvite, error) {
 	f, err := db.CollabAccess(ctx, userID, folderID)
+	if err != nil {
+		return nil, err
+	}
+	if !CanCollabWrite(f.Role) {
+		return nil, ErrCollabDenied
+	}
+	if strings.TrimSpace(role) == "" {
+		role = f.DefaultRole
+	}
+	role, err = NormalizeMemberRole(role)
 	if err != nil {
 		return nil, err
 	}
@@ -219,16 +265,18 @@ SELECT COUNT(*) FROM collab_members WHERE folder_id = ? AND user_id = ?
 		FolderName: f.Name,
 		Email:      email,
 		InvitedBy:  userID,
+		Role:       role,
 		Status:     InvitePending,
 	}
 	_, err = db.SQL.ExecContext(ctx, `
-INSERT INTO collab_invites (id, folder_id, email, invited_by, status, created_at)
-VALUES (?, ?, ?, ?, ?, ?)
+INSERT INTO collab_invites (id, folder_id, email, invited_by, status, created_at, role)
+VALUES (?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(folder_id, email) DO UPDATE SET
 	invited_by = excluded.invited_by,
 	status = excluded.status,
-	created_at = excluded.created_at
-`, inv.ID, folderID, email, userID, InvitePending, now)
+	created_at = excluded.created_at,
+	role = excluded.role
+`, inv.ID, folderID, email, userID, InvitePending, now, role)
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +294,7 @@ SELECT id FROM collab_invites WHERE folder_id = ? AND email = ?
 func (db *DB) PendingInvites(ctx context.Context, email string) ([]CollabInvite, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 	rows, err := db.SQL.QueryContext(ctx, `
-SELECT i.id, i.folder_id, f.name, i.email, i.invited_by, i.status, i.created_at,
+SELECT i.id, i.folder_id, f.name, i.email, i.invited_by, i.status, i.created_at, i.role,
 	COALESCE(NULLIF(u.display_name, ''), u.email)
 FROM collab_invites i
 JOIN collab_folders f ON f.id = i.folder_id
@@ -263,8 +311,11 @@ ORDER BY i.created_at
 	for rows.Next() {
 		var created string
 		var inv CollabInvite
-		if err := rows.Scan(&inv.ID, &inv.FolderID, &inv.FolderName, &inv.Email, &inv.InvitedBy, &inv.Status, &created, &inv.InviterName); err != nil {
+		if err := rows.Scan(&inv.ID, &inv.FolderID, &inv.FolderName, &inv.Email, &inv.InvitedBy, &inv.Status, &created, &inv.Role, &inv.InviterName); err != nil {
 			return nil, err
+		}
+		if inv.Role == "" {
+			inv.Role = CollabRoleEditor
 		}
 		inv.CreatedAt, _ = time.Parse(time.RFC3339, created)
 		out = append(out, inv)
@@ -283,11 +334,15 @@ func (db *DB) AcceptInvite(ctx context.Context, inviteID, userID, email string) 
 	if !strings.EqualFold(inv.Email, email) {
 		return nil, ErrInviteWrongEmail
 	}
+	role, err := NormalizeMemberRole(inv.Role)
+	if err != nil {
+		role = CollabRoleEditor
+	}
 	now := time.Now().UTC().Format(time.RFC3339)
 	if _, err := db.SQL.ExecContext(ctx, `
-INSERT OR IGNORE INTO collab_members (folder_id, user_id, created_at)
-VALUES (?, ?, ?)
-`, inv.FolderID, userID, now); err != nil {
+INSERT OR IGNORE INTO collab_members (folder_id, user_id, created_at, role)
+VALUES (?, ?, ?, ?)
+`, inv.FolderID, userID, now, role); err != nil {
 		return nil, err
 	}
 	if _, err := db.SQL.ExecContext(ctx, `
@@ -343,13 +398,16 @@ func (db *DB) inviteByID(ctx context.Context, id string) (*CollabInvite, error) 
 	inv := &CollabInvite{ID: id}
 	var created string
 	err := db.SQL.QueryRowContext(ctx, `
-SELECT folder_id, email, invited_by, status, created_at FROM collab_invites WHERE id = ?
-`, id).Scan(&inv.FolderID, &inv.Email, &inv.InvitedBy, &inv.Status, &created)
+SELECT folder_id, email, invited_by, status, created_at, role FROM collab_invites WHERE id = ?
+`, id).Scan(&inv.FolderID, &inv.Email, &inv.InvitedBy, &inv.Status, &created, &inv.Role)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrInviteNotFound
 	}
 	if err != nil {
 		return nil, err
+	}
+	if inv.Role == "" {
+		inv.Role = CollabRoleEditor
 	}
 	inv.CreatedAt, _ = time.Parse(time.RFC3339, created)
 	return inv, nil
@@ -368,11 +426,12 @@ func (db *DB) ListCollabMembers(ctx context.Context, folderID string) ([]CollabM
 		UserID:      owner.ID,
 		Email:       owner.Email,
 		DisplayName: owner.DisplayName,
+		Role:        CollabRoleOwner,
 		IsOwner:     true,
 	}}
 
 	rows, err := db.SQL.QueryContext(ctx, `
-SELECT u.id, u.email, u.display_name
+SELECT u.id, u.email, u.display_name, m.role
 FROM collab_members m
 JOIN users u ON u.id = m.user_id
 WHERE m.folder_id = ?
@@ -384,11 +443,14 @@ ORDER BY u.email
 	defer rows.Close()
 	for rows.Next() {
 		var m CollabMember
-		if err := rows.Scan(&m.UserID, &m.Email, &m.DisplayName); err != nil {
+		if err := rows.Scan(&m.UserID, &m.Email, &m.DisplayName, &m.Role); err != nil {
 			return nil, err
 		}
 		if m.UserID == owner.ID {
 			continue
+		}
+		if m.Role == "" {
+			m.Role = CollabRoleEditor
 		}
 		out = append(out, m)
 	}
@@ -417,6 +479,101 @@ func (db *DB) RemoveCollabMember(ctx context.Context, actorID, folderID, memberI
 	}
 	_, err = db.SQL.ExecContext(ctx, `DELETE FROM collab_members WHERE folder_id = ? AND user_id = ?`, folderID, memberID)
 	return err
+}
+
+func (db *DB) SetFolderDefaultRole(ctx context.Context, actorID, folderID, role string) (*CollabFolder, error) {
+	f, err := db.CollabAccess(ctx, actorID, folderID)
+	if err != nil {
+		return nil, err
+	}
+	if !CanCollabManage(f.Role) {
+		return nil, ErrCollabDenied
+	}
+	role, err = NormalizeMemberRole(role)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := db.SQL.ExecContext(ctx, `UPDATE collab_folders SET default_role = ? WHERE id = ?`, role, folderID); err != nil {
+		return nil, err
+	}
+	f.DefaultRole = role
+	return f, nil
+}
+
+func (db *DB) SetMemberRole(ctx context.Context, actorID, folderID, memberID, role string) error {
+	f, err := db.CollabAccess(ctx, actorID, folderID)
+	if err != nil {
+		return err
+	}
+	if !CanCollabManage(f.Role) || memberID == f.OwnerID {
+		return ErrCollabDenied
+	}
+	role, err = NormalizeMemberRole(role)
+	if err != nil {
+		return err
+	}
+	res, err := db.SQL.ExecContext(ctx, `
+UPDATE collab_members SET role = ? WHERE folder_id = ? AND user_id = ?
+`, role, folderID, memberID)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return ErrCollabDenied
+	}
+	return nil
+}
+
+func (db *DB) ListFolderInvites(ctx context.Context, folderID string) ([]CollabInvite, error) {
+	rows, err := db.SQL.QueryContext(ctx, `
+SELECT i.id, i.folder_id, f.name, i.email, i.invited_by, i.status, i.created_at, i.role,
+	COALESCE(NULLIF(u.display_name, ''), u.email)
+FROM collab_invites i
+JOIN collab_folders f ON f.id = i.folder_id
+JOIN users u ON u.id = i.invited_by
+WHERE i.folder_id = ? AND i.status = ?
+ORDER BY i.created_at
+`, folderID, InvitePending)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []CollabInvite{}
+	for rows.Next() {
+		var created string
+		var inv CollabInvite
+		if err := rows.Scan(&inv.ID, &inv.FolderID, &inv.FolderName, &inv.Email, &inv.InvitedBy, &inv.Status, &created, &inv.Role, &inv.InviterName); err != nil {
+			return nil, err
+		}
+		if inv.Role == "" {
+			inv.Role = CollabRoleEditor
+		}
+		inv.CreatedAt, _ = time.Parse(time.RFC3339, created)
+		out = append(out, inv)
+	}
+	return out, rows.Err()
+}
+
+func (db *DB) CancelInvite(ctx context.Context, actorID, folderID, inviteID string) error {
+	f, err := db.CollabAccess(ctx, actorID, folderID)
+	if err != nil {
+		return err
+	}
+	if !CanCollabWrite(f.Role) {
+		return ErrCollabDenied
+	}
+	res, err := db.SQL.ExecContext(ctx, `
+DELETE FROM collab_invites WHERE id = ? AND folder_id = ? AND status = ?
+`, inviteID, folderID, InvitePending)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return ErrInviteNotFound
+	}
+	return nil
 }
 
 func (db *DB) AddCollabMarker(ctx context.Context, folderID, prefix string) error {
