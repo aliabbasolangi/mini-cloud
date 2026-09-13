@@ -400,8 +400,11 @@
     .modal h2 { margin: 0 0 8px; font-size: 18px; }
     #preview-body { max-height: 70vh; overflow: auto; margin: 12px 0; color: var(--muted); }
     #preview-body img { max-width: 100%; max-height: 65vh; display: block; margin: 0 auto; border-radius: 8px; }
-    #preview-body iframe { width: 100%; height: 65vh; border: 0; background: #fff; border-radius: 8px; }
+    #preview-body iframe, #preview-body embed, #preview-body object {
+      width: 100%; height: 65vh; border: 0; background: #fff; border-radius: 8px; display: block;
+    }
     #preview-body pre { white-space: pre-wrap; word-break: break-word; font-size: 13px; color: var(--ink); }
+    .preview-hint { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
     .icon { cursor: pointer; }
     .icon:hover { outline: 1px solid var(--accent); }
     .modes { display: flex; gap: 16px; margin: 8px 0 14px; color: var(--ink); font-size: 14px; }
@@ -1098,6 +1101,32 @@
 
     function fileExt(name) {
       return (name.split(".").pop() || "").toLowerCase();
+    }
+
+    function looksLikePdf(bytes) {
+      return !!(bytes && bytes.length >= 5 && bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46 && bytes[4] === 0x2d);
+    }
+
+    function mimeFor(name, bytes) {
+      if (looksLikePdf(bytes)) return "application/pdf";
+      switch (fileExt(name)) {
+        case "pdf": return "application/pdf";
+        case "png": return "image/png";
+        case "jpg":
+        case "jpeg": return "image/jpeg";
+        case "gif": return "image/gif";
+        case "webp": return "image/webp";
+        case "bmp": return "image/bmp";
+        case "svg": return "image/svg+xml";
+        case "txt":
+        case "log":
+        case "md": return "text/plain";
+        case "html":
+        case "htm": return "text/html";
+        case "json": return "application/json";
+        case "csv": return "text/csv";
+        default: return "application/octet-stream";
+      }
     }
 
     function isImageKey(name) {
@@ -2309,7 +2338,7 @@
           return;
         }
       }
-      const blob = new Blob([bytes]);
+      const blob = new Blob([bytes], { type: mimeFor(f.key, bytes) });
       if (previewURL) URL.revokeObjectURL(previewURL);
       previewURL = URL.createObjectURL(blob);
       const name = f.key.toLowerCase();
@@ -2322,10 +2351,15 @@
         body.append(img);
         return;
       }
-      if (name.endsWith(".pdf") || blob.type === "application/pdf") {
+      if (blob.type === "application/pdf" || fileExt(name) === "pdf") {
         const frame = document.createElement("iframe");
         frame.src = previewURL;
+        frame.title = prettyName(f.key);
         body.append(frame);
+        const hint = document.createElement("p");
+        hint.className = "preview-hint";
+        hint.textContent = "If the pages stay blank, use Download. Some phones will not draw a PDF inside this window.";
+        body.append(hint);
         return;
       }
       if (/\.(txt|md|json|csv|log|go|js|css|html|xml|gz)$/.test(name) || (blob.type && blob.type.startsWith("text/"))) {
@@ -2355,7 +2389,7 @@
           return;
         }
       }
-      const url = URL.createObjectURL(new Blob([bytes]));
+      const url = URL.createObjectURL(new Blob([bytes], { type: mimeFor(key, bytes) }));
       const link = document.createElement("a");
       link.href = url;
       link.download = key.split("/").pop();
