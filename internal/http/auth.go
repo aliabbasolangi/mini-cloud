@@ -120,7 +120,7 @@ func (h authHandlers) registerVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if displayName != "" {
-		if updated, err := h.catalog.UpdateProfile(r.Context(), user.ID, displayName, user.Theme, user.Accent); err == nil {
+		if updated, err := h.catalog.UpdateProfile(r.Context(), user.ID, displayName, user.Theme, user.Accent, user.Backdrop); err == nil {
 			user = updated
 		}
 	}
@@ -330,6 +330,7 @@ func (h authHandlers) respondToken(w http.ResponseWriter, ctx context.Context, u
 		"display_name":  user.DisplayName,
 		"theme":         user.Theme,
 		"accent":        user.Accent,
+		"backdrop":      user.Backdrop,
 		"vault_salt":    user.VaultSalt,
 		"vault_wrap":    user.VaultWrap,
 		"approved":      user.Approved,

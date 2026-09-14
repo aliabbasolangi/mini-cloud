@@ -70,6 +70,10 @@ func Open(path string) (*DB, error) {
 		_ = sqlDB.Close()
 		return nil, fmt.Errorf("migrate share links: %w", err)
 	}
+	if err := migrateLook(sqlDB); err != nil {
+		_ = sqlDB.Close()
+		return nil, fmt.Errorf("migrate look: %w", err)
+	}
 	return &DB{SQL: sqlDB}, nil
 }
 
@@ -112,7 +116,7 @@ func migrateProfile(sqlDB *sql.DB) error {
 	for _, col := range []string{
 		"display_name TEXT NOT NULL DEFAULT ''",
 		"theme TEXT NOT NULL DEFAULT 'dark'",
-		"accent TEXT NOT NULL DEFAULT '#d4a574'",
+		"accent TEXT NOT NULL DEFAULT '#5b9dff'",
 	} {
 		if _, err := sqlDB.Exec("ALTER TABLE users ADD COLUMN " + col); err != nil {
 			if !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
@@ -265,6 +269,16 @@ func migrateShareLinks(sqlDB *sql.DB) error {
 		}
 	}
 	return nil
+}
+
+func migrateLook(sqlDB *sql.DB) error {
+	if _, err := sqlDB.Exec(`ALTER TABLE users ADD COLUMN backdrop TEXT NOT NULL DEFAULT 'aurora'`); err != nil {
+		if !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+			return err
+		}
+	}
+	_, err := sqlDB.Exec(`UPDATE users SET accent = '#5b9dff' WHERE lower(accent) IN ('#d4a574', '#e3c27a')`)
+	return err
 }
 
 func migrateEmailCodes(sqlDB *sql.DB) error {

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-backdrop="aurora">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -11,30 +11,33 @@
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,560;0,9..144,700;1,9..144,560&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg: #070b0a;
-      --bg-2: #101816;
-      --card: #141c1aee;
-      --ink: #f6f1e6;
-      --muted: #9aa89f;
-      --line: #2a3833;
-      --accent: #e3c27a;
-      --accent-ink: #1a1408;
-      --danger: #e07a6a;
-      --ok: #6fbf9a;
-      --hover: #24302a;
-      --glow: rgba(227, 194, 122, 0.16);
+      --bg: #05070c;
+      --bg-2: rgba(16, 20, 28, 0.55);
+      --card: rgba(18, 22, 32, 0.52);
+      --ink: #f4f6fb;
+      --muted: #9aa3b5;
+      --line: rgba(255, 255, 255, 0.12);
+      --glass-edge: rgba(255, 255, 255, 0.22);
+      --accent: #5b9dff;
+      --accent-ink: #071018;
+      --danger: #ff6b6b;
+      --ok: #3ee0a0;
+      --hover: rgba(255, 255, 255, 0.08);
+      --glow: color-mix(in srgb, var(--accent) 28%, transparent);
+      --glass-blur: saturate(180%) blur(28px);
     }
     :root.theme-light {
-      --bg: #f4efe4;
-      --bg-2: #fffdf8;
-      --card: #fffffff2;
-      --ink: #1c1814;
-      --muted: #6b655c;
-      --line: #e2d8c8;
-      --danger: #b54b3c;
-      --ok: #2f7a52;
-      --hover: #efe4d0;
-      --glow: rgba(196, 154, 70, 0.18);
+      --bg: #e8edf6;
+      --bg-2: rgba(255, 255, 255, 0.5);
+      --card: rgba(255, 255, 255, 0.58);
+      --ink: #141820;
+      --muted: #5c6574;
+      --line: rgba(20, 24, 32, 0.1);
+      --glass-edge: rgba(255, 255, 255, 0.7);
+      --danger: #d94040;
+      --ok: #1f9a64;
+      --hover: rgba(20, 24, 32, 0.06);
+      --glow: color-mix(in srgb, var(--accent) 22%, transparent);
     }
     * { box-sizing: border-box; }
     html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -47,14 +50,24 @@
     }
     .atmosphere {
       position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;
-      background: radial-gradient(1200px 700px at 18% -10%, rgba(227, 194, 122, 0.08), transparent 55%),
-                  radial-gradient(900px 600px at 90% 20%, rgba(70, 130, 112, 0.08), transparent 50%),
-                  linear-gradient(180deg, #0c1412 0%, var(--bg) 42%);
+      background: radial-gradient(1200px 700px at 18% -10%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 55%),
+                  radial-gradient(900px 600px at 90% 20%, rgba(70, 110, 210, 0.14), transparent 50%),
+                  linear-gradient(180deg, #081018 0%, var(--bg) 48%);
     }
     :root.theme-light .atmosphere {
-      background: radial-gradient(1200px 700px at 18% -10%, rgba(196, 154, 70, 0.16), transparent 55%),
-                  radial-gradient(900px 600px at 90% 20%, rgba(70, 130, 112, 0.1), transparent 50%),
+      background: radial-gradient(1200px 700px at 18% -10%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 55%),
+                  radial-gradient(900px 600px at 90% 20%, rgba(120, 160, 255, 0.16), transparent 50%),
                   var(--bg);
+    }
+    .atmosphere .sky {
+      position: absolute; inset: -30%;
+      background:
+        radial-gradient(ellipse at 20% 30%, color-mix(in srgb, var(--accent) 38%, transparent), transparent 52%),
+        radial-gradient(ellipse at 82% 18%, rgba(90, 140, 255, 0.34), transparent 48%),
+        radial-gradient(ellipse at 48% 88%, rgba(160, 90, 255, 0.22), transparent 52%);
+      filter: blur(42px);
+      animation: aurora-shift 22s ease-in-out infinite alternate;
+      opacity: 0;
     }
     .atmosphere .orb {
       position: absolute; border-radius: 50%; filter: blur(80px);
@@ -63,41 +76,68 @@
     :root.theme-light .atmosphere .orb { mix-blend-mode: multiply; }
     .orb-a {
       width: min(620px, 54vw); height: min(620px, 54vw);
-      background: rgba(227, 194, 122, 0.42);
+      background: color-mix(in srgb, var(--accent) 48%, transparent);
       top: -18%; left: -14%;
       animation: orb-wander-a 26s ease-in-out infinite alternate;
     }
     .orb-b {
       width: min(520px, 46vw); height: min(520px, 46vw);
-      background: rgba(70, 150, 120, 0.36);
+      background: rgba(70, 130, 220, 0.36);
       top: 6%; right: -16%;
       animation: orb-wander-b 34s ease-in-out infinite alternate;
     }
     .orb-c {
       width: min(440px, 40vw); height: min(440px, 40vw);
-      background: rgba(227, 194, 122, 0.22);
+      background: rgba(170, 90, 255, 0.22);
       bottom: -18%; left: 18%;
       animation: orb-wander-c 40s ease-in-out infinite alternate;
     }
     .orb-d {
       width: min(360px, 32vw); height: min(360px, 32vw);
-      background: rgba(130, 168, 210, 0.2);
+      background: rgba(80, 220, 200, 0.2);
       top: 46%; left: 42%;
       animation: orb-wander-d 22s ease-in-out infinite alternate;
     }
     .atmosphere .grid {
       position: absolute; inset: 0;
       background-image:
-        linear-gradient(rgba(227, 194, 122, 0.045) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(227, 194, 122, 0.045) 1px, transparent 1px);
+        linear-gradient(color-mix(in srgb, var(--accent) 10%, transparent) 1px, transparent 1px),
+        linear-gradient(90deg, color-mix(in srgb, var(--accent) 10%, transparent) 1px, transparent 1px);
       background-size: 56px 56px;
       mask-image: radial-gradient(ellipse at 50% 0%, #000 12%, transparent 72%);
       animation: grid-drift 80s linear infinite;
     }
+    .atmosphere .stars {
+      position: absolute; inset: 0; opacity: 0;
+      background-image:
+        radial-gradient(1.2px 1.2px at 12% 18%, rgba(255,255,255,.85), transparent),
+        radial-gradient(1px 1px at 28% 62%, rgba(255,255,255,.7), transparent),
+        radial-gradient(1.4px 1.4px at 63% 22%, rgba(255,255,255,.8), transparent),
+        radial-gradient(1px 1px at 78% 48%, rgba(255,255,255,.65), transparent),
+        radial-gradient(1.2px 1.2px at 88% 14%, rgba(255,255,255,.75), transparent),
+        radial-gradient(1px 1px at 8% 82%, rgba(255,255,255,.55), transparent),
+        radial-gradient(1.6px 1.6px at 46% 76%, rgba(255,255,255,.8), transparent),
+        radial-gradient(1px 1px at 91% 81%, rgba(255,255,255,.6), transparent);
+      background-size: 100% 100%;
+      animation: star-drift 60s linear infinite;
+    }
     .atmosphere .grain {
-      position: absolute; inset: 0; opacity: 0.08;
+      position: absolute; inset: 0; opacity: 0.07;
       background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     }
+    html[data-backdrop="aurora"] .atmosphere .sky { opacity: 1; }
+    html[data-backdrop="aurora"] .atmosphere .grid { opacity: 0.28; }
+    html[data-backdrop="orbs"] .atmosphere .sky { opacity: 0; }
+    html[data-backdrop="mesh"] .atmosphere .sky { opacity: 0.85; filter: blur(28px) saturate(1.3); }
+    html[data-backdrop="mesh"] .atmosphere .grid { opacity: 0; }
+    html[data-backdrop="mesh"] .orb-c { background: rgba(255, 90, 160, 0.28); }
+    html[data-backdrop="stars"] .atmosphere .stars { opacity: 1; }
+    html[data-backdrop="stars"] .atmosphere .sky { opacity: 0.45; }
+    html[data-backdrop="stars"] .atmosphere .grid { opacity: 0; }
+    html[data-backdrop="quiet"] .atmosphere .orb,
+    html[data-backdrop="quiet"] .atmosphere .grid,
+    html[data-backdrop="quiet"] .atmosphere .stars { opacity: 0; }
+    html[data-backdrop="quiet"] .atmosphere .sky { opacity: 0.35; animation: none; filter: blur(60px); }
     @keyframes orb-wander-a {
       0% { transform: translate(0, 0) scale(1); }
       50% { transform: translate(22vw, 16vh) scale(1.2); }
@@ -120,13 +160,30 @@
     @keyframes grid-drift {
       to { background-position: 56px 56px; }
     }
+    @keyframes aurora-shift {
+      0% { transform: translate(-4%, -2%) rotate(0deg) scale(1); }
+      50% { transform: translate(6%, 4%) rotate(8deg) scale(1.08); }
+      100% { transform: translate(-2%, 6%) rotate(-6deg) scale(1.04); }
+    }
+    @keyframes star-drift {
+      from { transform: translateY(0); }
+      to { transform: translateY(-40px); }
+    }
     @keyframes rise-in {
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: none; }
     }
     @keyframes mark-glow {
       0%, 100% { box-shadow: 0 8px 22px var(--glow); }
-      50% { box-shadow: 0 10px 30px rgba(227, 194, 122, 0.38); }
+      50% { box-shadow: 0 10px 30px color-mix(in srgb, var(--accent) 42%, transparent); }
+    }
+    @keyframes glass-pop {
+      from { opacity: 0; transform: translateY(-8px) scale(0.96); filter: blur(8px); }
+      to { opacity: 1; transform: none; filter: none; }
+    }
+    @keyframes overlay-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
     }
     .page-stack { position: relative; view-transition-name: vault-page; }
     .page-in { animation: page-in 0.5s cubic-bezier(.22, 1, .32, 1) both; }
@@ -153,6 +210,13 @@
       justify-content: space-between;
       gap: 16px;
       margin-bottom: 22px;
+      padding: 10px 14px;
+      border-radius: 20px;
+      background: var(--card);
+      border: 1px solid var(--glass-edge);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.16);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
     }
     .brand { display: flex; align-items: center; gap: 12px; }
     .mark {
@@ -199,10 +263,10 @@
     .notif-item strong { display: block; }
     .danger-zone {
       margin-top: 28px; padding: 18px 16px 16px;
-      border: 1px solid #5a3330; border-radius: 12px;
-      background: #2a1c1c;
+      border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent); border-radius: 16px;
+      background: color-mix(in srgb, var(--danger) 10%, transparent);
     }
-    :root.theme-light .danger-zone { background: #f8ecea; border-color: #e0b4ae; }
+    :root.theme-light .danger-zone { background: color-mix(in srgb, var(--danger) 8%, white); border-color: color-mix(in srgb, var(--danger) 28%, transparent); }
     .danger-zone h3 { margin: 0 0 8px; font-size: 16px; color: var(--danger); }
     .danger-zone .lead { color: var(--muted); margin: 0 0 14px; }
     button.danger-fill {
@@ -235,35 +299,48 @@
     .account-menu {
       position: absolute; right: 0; top: calc(100% + 8px);
       width: 240px; padding: 8px;
-      background: var(--card); border: 1px solid var(--line); border-radius: 12px;
-      box-shadow: 0 12px 40px rgba(0,0,0,0.28); z-index: 30;
+      background: var(--card); border: 1px solid var(--glass-edge); border-radius: 16px;
+      box-shadow: 0 18px 50px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.16);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      z-index: 30;
+      transform-origin: top right;
+      opacity: 0; visibility: hidden; pointer-events: none;
+      transform: translateY(-8px) scale(0.96);
+      transition: opacity 0.22s ease, transform 0.28s cubic-bezier(.16,1,.3,1), visibility 0.22s;
+    }
+    .account-menu.open {
+      opacity: 1; visibility: visible; pointer-events: auto;
+      transform: none;
     }
     .account-meta { padding: 8px 10px 10px; border-bottom: 1px solid var(--line); margin-bottom: 6px; }
     .account-meta strong { display: block; color: var(--ink); font-size: 14px; }
     .account-meta span { color: var(--muted); font-size: 12px; word-break: break-all; }
     button.menu-item {
       width: 100%; text-align: left; background: transparent; color: var(--ink);
-      font-weight: 500; padding: 9px 10px; border-radius: 8px;
+      font-weight: 500; padding: 9px 10px; border-radius: 10px;
+      transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
     }
     button.menu-item:hover { background: var(--hover); color: var(--accent); filter: none; }
     button {
-      border: 0; border-radius: 8px; padding: 10px 14px;
+      border: 0; border-radius: 12px; padding: 10px 14px;
       font: inherit; cursor: pointer;
       background: var(--accent); color: var(--accent-ink); font-weight: 600;
+      transition: transform 0.18s ease, filter 0.18s ease, box-shadow 0.18s ease;
     }
-    button:hover { filter: brightness(1.06); }
-    button.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); font-weight: 500; }
+    button:hover { filter: brightness(1.06); transform: translateY(-1px); }
+    button.ghost { background: rgba(255,255,255,0.06); color: var(--ink); border: 1px solid var(--glass-edge); font-weight: 500; }
     button.ghost:hover { border-color: var(--accent); color: var(--accent); background: var(--hover); filter: none; }
     button.small { padding: 6px 10px; font-size: 13px; font-weight: 500; }
-    button.danger { background: transparent; color: var(--danger); border: 1px solid #5a3330; padding: 6px 10px; font-size: 13px; font-weight: 500; }
-    button.danger:hover { background: #2a1c1c; border-color: var(--danger); filter: none; }
+    button.danger { background: transparent; color: var(--danger); border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent); padding: 6px 10px; font-size: 13px; font-weight: 500; }
+    button.danger:hover { background: color-mix(in srgb, var(--danger) 12%, transparent); border-color: var(--danger); filter: none; }
     button.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-    button:disabled { opacity: 0.55; cursor: wait; }
+    button:disabled { opacity: 0.55; cursor: wait; transform: none; }
     button.icon-btn {
       width: 34px; height: 34px; padding: 0;
       display: grid; place-items: center;
       background: transparent; color: var(--muted);
-      border: 1px solid var(--line); border-radius: 8px;
+      border: 1px solid var(--line); border-radius: 10px;
     }
     button.icon-btn svg {
       width: 16px; height: 16px;
@@ -274,9 +351,10 @@
     button.icon-btn.download:hover { color: var(--ok); border-color: var(--ok); background: #1c2a22; filter: none; }
     button.icon-btn.danger:hover { color: var(--danger); border-color: var(--danger); background: #2a1c1c; filter: none; }
     .card {
-      background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 28px;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 18px 50px rgba(0,0,0,0.18);
+      background: var(--card); border: 1px solid var(--glass-edge); border-radius: 22px; padding: 28px;
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      box-shadow: 0 18px 50px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.14);
       transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
     }
     .files.list li { transition: background 0.2s ease; }
@@ -359,17 +437,32 @@
     label { display: block; font-size: 12px; color: var(--muted); margin: 0 0 6px; }
     input[type="email"], input[type="password"], input[type="text"], select {
       width: 100%; padding: 11px 12px; margin-bottom: 14px;
-      border: 1px solid var(--line); border-radius: 10px;
-      background: #0c1211; color: var(--ink); font: inherit;
+      border: 1px solid var(--glass-edge); border-radius: 12px;
+      background: rgba(8, 12, 20, 0.42); color: var(--ink); font: inherit;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      transition: border-color 0.2s ease, box-shadow 0.22s ease, transform 0.2s ease, background 0.2s ease;
     }
     :root.theme-light input[type="email"],
     :root.theme-light input[type="password"],
     :root.theme-light input[type="text"],
     :root.theme-light select {
-      background: #fffdf8;
+      background: rgba(255, 255, 255, 0.62);
     }
-    select { cursor: pointer; }
-    input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+    select {
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%239aa3b5' stroke-width='1.6' stroke-linecap='round' d='M1.5 1.5 6 6l4.5-4.5'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: color-mix(in srgb, var(--accent) 70%, white);
+      box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 24%, transparent);
+      transform: translateY(-1px);
+    }
     .actions { display: flex; gap: 8px; margin-top: 4px; }
     .err { color: var(--danger); min-height: 1.2em; margin: 12px 0 0; font-size: 13px; }
     .usage {
@@ -402,7 +495,9 @@
     .stats .count { color: var(--muted); font-size: 13px; }
     .tool-group {
       display: flex; gap: 4px; padding: 3px;
-      background: var(--bg-2); border: 1px solid var(--line); border-radius: 10px;
+      background: var(--bg-2); border: 1px solid var(--glass-edge); border-radius: 12px;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
     }
     .tool-group .icon-btn { border: 0; background: transparent; }
     .tool-group .icon-btn.active {
@@ -412,7 +507,7 @@
     .settings-page h2 { margin: 0 0 6px; font-size: 26px; font-family: Fraunces, Georgia, serif; }
     .settings-page .lead { color: var(--muted); margin: 0 0 22px; }
     .settings-back { margin-bottom: 16px; }
-    .files { list-style: none; padding: 8px 12px; margin: 0; box-shadow: 0 18px 50px rgba(0,0,0,0.18); }
+    .files { list-style: none; padding: 8px 12px; margin: 0; box-shadow: 0 18px 50px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.12); }
     .files.list li {
       display: grid; grid-template-columns: 48px 1fr auto;
       align-items: center; gap: 12px; padding: 12px 8px;
@@ -446,21 +541,22 @@
     }
     .files.grid .mid { width: 100%; min-width: 0; }
     .files li.dragging { opacity: 0.4; }
-    .files li.drop-target, .crumbs button.drop-target { outline: 1px solid var(--accent); background: #2a241c; }
+    .files li.drop-target, .crumbs button.drop-target { outline: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
     .crumbs button.drop-target { border-radius: 6px; padding: 2px 8px; }
     .files li[draggable="true"] { cursor: grab; }
     .row-actions { display: flex; gap: 8px; }
     .icon {
-      width: 48px; height: 48px; border-radius: 10px;
+      width: 48px; height: 48px; border-radius: 12px;
       display: grid; place-items: center;
       font-size: 11px; font-weight: 700;
-      background: #2d3340; color: var(--accent);
+      background: rgba(255,255,255,0.06); color: var(--accent);
       overflow: hidden; position: relative;
+      border: 1px solid var(--line);
     }
-    .icon.img { background: #2a3328; color: var(--ok); }
-    .icon.doc { background: #332828; color: var(--danger); }
-    .icon.folder { background: #2a261c; color: var(--accent); }
-    .icon.shared { background: #243044; color: #8eb4e8; }
+    .icon.img { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
+    .icon.doc { background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger); }
+    .icon.folder { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+    .icon.shared { background: rgba(90, 140, 220, 0.18); color: #8eb4e8; }
     .icon.shared svg {
       width: 22px; height: 22px;
       fill: none; stroke: currentColor; stroke-width: 2;
@@ -483,8 +579,10 @@
     .meta { color: var(--muted); font-size: 12px; }
     .empty { text-align: center; color: var(--muted); padding: 28px 8px; }
     .banner {
-      margin-top: 12px; padding: 12px 14px; border-radius: 10px;
-      background: #2a241c; border: 1px solid #4a3d2c; font-size: 13px; word-break: break-all;
+      margin-top: 12px; padding: 12px 14px; border-radius: 14px;
+      background: var(--card); border: 1px solid var(--glass-edge); font-size: 13px; word-break: break-all;
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
     }
     .banner a { color: var(--accent); }
     #wait-banner { color: var(--ink); }
@@ -497,8 +595,10 @@
     .approval-item .actions { display: flex; gap: 8px; flex-shrink: 0; }
     .collab-bar {
       display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
-      margin: 12px 0 0; padding: 12px 14px; border-radius: 10px;
-      background: var(--bg-2); border: 1px solid var(--line);
+      margin: 12px 0 0; padding: 12px 14px; border-radius: 16px;
+      background: var(--card); border: 1px solid var(--glass-edge);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
     }
     .collab-bar strong { display: block; }
     .collab-bar span { color: var(--muted); font-size: 12px; }
@@ -531,9 +631,13 @@
       color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: 0.02em;
     }
     .overlay {
-      position: fixed; inset: 0; background: rgba(10, 10, 14, 0.72);
+      position: fixed; inset: 0; background: rgba(6, 8, 14, 0.42);
       display: grid; place-items: center; padding: 20px; z-index: 20;
+      backdrop-filter: blur(18px) saturate(140%);
+      -webkit-backdrop-filter: blur(18px) saturate(140%);
     }
+    .overlay:not(.hidden) { animation: overlay-in 0.28s ease; }
+    .overlay:not(.hidden) .modal { animation: glass-pop 0.38s cubic-bezier(.16,1,.3,1); }
     .modal { width: min(460px, 100%); }
     .modal.wide { width: min(860px, 100%); }
     .modal h2 { margin: 0 0 8px; font-size: 18px; }
@@ -561,7 +665,7 @@
     }
     .upload-progress-bar span {
       display: block; height: 100%; width: 0;
-      background: linear-gradient(90deg, #b8893a, var(--accent), #f0d59a, var(--accent));
+      background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 55%, #1a3a80), var(--accent), #cfe3ff, var(--accent));
       background-size: 220% 100%;
       animation: progress-shine 1.1s linear infinite;
       transition: width 0.18s ease;
@@ -595,8 +699,86 @@
       width: 28px; height: 28px; border-radius: 50%;
       border: 2px solid transparent; cursor: pointer; padding: 0;
       background: var(--c);
+      transition: transform 0.18s ease, border-color 0.18s ease;
     }
+    .swatch:hover { transform: scale(1.08); }
     .swatch.on { border-color: var(--ink); }
+    .backdrop-picks {
+      display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;
+      margin: 0 0 18px;
+    }
+    .backdrop-pick {
+      padding: 0; border-radius: 14px; overflow: hidden;
+      border: 2px solid transparent; background: #0b1018; height: 64px;
+      position: relative; cursor: pointer;
+      transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .backdrop-pick:hover { transform: translateY(-2px); }
+    .backdrop-pick.on { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent); }
+    .backdrop-pick .mini {
+      position: absolute; inset: 0; overflow: hidden;
+    }
+    .backdrop-pick .mini .sky, .backdrop-pick .mini .orb {
+      position: absolute; border-radius: 50%; filter: blur(10px);
+    }
+    .backdrop-pick span {
+      position: absolute; left: 8px; right: 8px; bottom: 6px;
+      font-size: 11px; font-weight: 650; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.6);
+      text-align: left;
+    }
+    .backdrop-pick .mini .sky {
+      inset: -40%; opacity: 1; filter: blur(10px);
+      animation: aurora-shift 10s ease-in-out infinite alternate;
+    }
+    .backdrop-pick .mini .orb { width: 42px; height: 42px; filter: blur(10px); }
+    .backdrop-pick .mini .orb-a { top: -20%; left: -16%; }
+    .backdrop-pick .mini .orb-b { right: -18%; bottom: -20%; width: 36px; height: 36px; }
+    .backdrop-pick .mini[data-scene="quiet"] .orb { opacity: 0.15; }
+    .backdrop-pick .mini[data-scene="quiet"] .sky { opacity: 0.4; animation: none; }
+    .backdrop-pick .mini[data-scene="stars"] { background: #05070c; }
+    .backdrop-pick .mini[data-scene="orbs"] .sky { opacity: 0; }
+    .glass-select { position: relative; margin-bottom: 14px; min-width: 148px; }
+    .folder-form .glass-select, .member-row .glass-select, .collab-bar .glass-select { margin-bottom: 0; width: auto; }
+    .glass-select > select {
+      position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px;
+      margin: 0; padding: 0; border: 0;
+    }
+    .glass-select-btn {
+      width: 100%; text-align: left; padding: 11px 32px 11px 12px;
+      background: rgba(8, 12, 20, 0.42); color: var(--ink); font-weight: 500;
+      border: 1px solid var(--glass-edge); border-radius: 12px;
+      backdrop-filter: blur(12px);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%239aa3b5' stroke-width='1.6' stroke-linecap='round' d='M1.5 1.5 6 6l4.5-4.5'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 12px center;
+      transition: border-color 0.2s ease, box-shadow 0.22s ease, transform 0.2s ease, background 0.2s ease;
+    }
+    :root.theme-light .glass-select-btn { background-color: rgba(255,255,255,0.62); }
+    .glass-select.open .glass-select-btn {
+      border-color: color-mix(in srgb, var(--accent) 70%, white);
+      box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 24%, transparent);
+    }
+    button.glass-select-btn:hover, button.glass-select-item:hover { transform: none; filter: none; }
+    .glass-select-menu {
+      position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 40;
+      padding: 6px;
+      background: var(--card); border: 1px solid var(--glass-edge); border-radius: 14px;
+      box-shadow: 0 18px 50px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.14);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      transform-origin: top center;
+      opacity: 0; visibility: hidden; pointer-events: none;
+      transform: translateY(-8px) scale(0.96);
+      transition: opacity 0.2s ease, transform 0.28s cubic-bezier(.16,1,.3,1), visibility 0.2s;
+    }
+    .glass-select.open .glass-select-menu {
+      opacity: 1; visibility: visible; pointer-events: auto; transform: none;
+    }
+    .glass-select-item {
+      width: 100%; text-align: left; background: transparent; color: var(--ink);
+      font-weight: 500; padding: 9px 10px; border-radius: 10px;
+      transform: none;
+    }
+    .glass-select-item:hover, .glass-select-item.on { background: var(--hover); color: var(--accent); filter: none; }
     input[type="color"] {
       width: 40px; height: 32px; padding: 0; border: 0; background: transparent;
       cursor: pointer; margin: 0;
@@ -636,7 +818,8 @@
     }
     .sub-swatches button.on { border-color: var(--ink); }
     @media (prefers-reduced-motion: reduce) {
-      .atmosphere .orb, .atmosphere .grid, .mark, .row-in, .page-in { animation: none !important; }
+      .atmosphere .orb, .atmosphere .grid, .atmosphere .sky, .atmosphere .stars, .mark, .row-in, .page-in { animation: none !important; }
+      .account-menu, .glass-select-menu, .overlay:not(.hidden), .overlay:not(.hidden) .modal { animation: none !important; transition: none !important; }
       ::view-transition-old(vault-page),
       ::view-transition-new(vault-page) { animation: none !important; }
     }
@@ -709,16 +892,18 @@
       }
       #preview-body iframe, #preview-body embed, #preview-body object { height: 50vh; }
       .account-menu { width: min(260px, calc(100vw - 28px)); }
-      .settings-page { max-width: none; }
+      .backdrop-picks { grid-template-columns: repeat(2, 1fr); }
     }
   </style>
 </head>
 <body>
   <div class="atmosphere" aria-hidden="true">
+    <div class="sky"></div>
     <div class="orb orb-a"></div>
     <div class="orb orb-b"></div>
     <div class="orb orb-c"></div>
     <div class="orb orb-d"></div>
+    <div class="stars"></div>
     <div class="grid"></div>
     <div class="grain"></div>
   </div>
@@ -741,7 +926,7 @@
           </button>
           <span id="pfp-badge" class="pfp-badge hidden">0</span>
         </div>
-        <div class="account-menu hidden" id="account-menu" role="menu">
+        <div class="account-menu" id="account-menu" role="menu">
           <div class="account-meta">
             <strong id="menu-name">Signed in</strong>
             <span id="menu-email"></span>
@@ -902,7 +1087,7 @@
       <button type="button" class="ghost small settings-back" id="settings-back">Back to files</button>
       <div class="card">
         <h2>Settings</h2>
-        <p class="lead">Photo, name, theme, and color stay with your account.</p>
+        <p class="lead">Photo, name, theme, color, and background stay with your account.</p>
         <label>Profile photo</label>
         <div class="pfp-xl" id="settings-pfp">
           <span id="settings-pfp-letter">?</span>
@@ -922,6 +1107,8 @@
         </div>
         <label>Accent color</label>
         <div class="swatches" id="swatches"></div>
+        <label>Background</label>
+        <div class="backdrop-picks" id="backdrop-picks"></div>
         <p class="err" id="profile-err"></p>
         <p class="ok" id="profile-ok"></p>
         <div class="actions">
@@ -1099,6 +1286,60 @@
 
   <script>
     const $ = (id) => document.getElementById(id);
+
+    function closeGlassSelects(except) {
+      document.querySelectorAll(".glass-select.open").forEach((el) => {
+        if (el !== except) el.classList.remove("open");
+      });
+    }
+    function enhanceSelect(sel) {
+      if (!sel) return;
+      const existing = sel.closest(".glass-select");
+      if (existing) {
+        if (existing._sync) existing._sync();
+        return;
+      }
+      const wrap = document.createElement("div");
+      wrap.className = "glass-select";
+      sel.parentNode.insertBefore(wrap, sel);
+      wrap.append(sel);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "glass-select-btn";
+      const menu = document.createElement("div");
+      menu.className = "glass-select-menu";
+      const sync = () => {
+        const chosen = sel.options[sel.selectedIndex];
+        btn.textContent = chosen ? chosen.textContent : "";
+        menu.innerHTML = "";
+        [...sel.options].forEach((opt) => {
+          const item = document.createElement("button");
+          item.type = "button";
+          item.className = "glass-select-item" + (opt.selected ? " on" : "");
+          item.textContent = opt.textContent;
+          item.onclick = (e) => {
+            e.stopPropagation();
+            sel.value = opt.value;
+            sel.dispatchEvent(new Event("change", { bubbles: true }));
+            wrap.classList.remove("open");
+            sync();
+          };
+          menu.append(item);
+        });
+      };
+      wrap._sync = sync;
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const willOpen = !wrap.classList.contains("open");
+        closeGlassSelects(wrap);
+        wrap.classList.toggle("open", willOpen);
+      };
+      wrap.append(btn, menu);
+      sync();
+    }
+    function enhanceSelects(root) {
+      (root || document).querySelectorAll("select").forEach(enhanceSelect);
+    }
     const tokenKey = "minicloud.token";
     const emailKey = "minicloud.email";
     const rememberKey = "minicloud.remember";
@@ -1332,8 +1573,15 @@
       const n = Math.max(1, Math.ceil(plainSize / chunk));
       return 16 + n * 32 + plainSize;
     }
-    let profile = { email: "", display_name: "", theme: "dark", accent: "#d4a574" };
-    const ACCENTS = ["#d4a574", "#4a90d9", "#5cbf8a", "#e07a6a", "#9b7ed9"];
+    let profile = { email: "", display_name: "", theme: "dark", accent: "#5b9dff", backdrop: "aurora" };
+    const ACCENTS = ["#5b9dff", "#64d2ff", "#30d158", "#bf5af2", "#ff453a", "#ff9f0a"];
+    const BACKDROPS = [
+      { id: "aurora", name: "Aurora" },
+      { id: "orbs", name: "Drift" },
+      { id: "mesh", name: "Glow" },
+      { id: "stars", name: "Night" },
+      { id: "quiet", name: "Quiet" },
+    ];
 
     function formatSize(n) {
       if (n < 1024) return n + " B";
@@ -2111,9 +2359,12 @@
 
     function applyProfile(p) {
       profile = p;
+      const accent = p.accent || "#5b9dff";
+      const backdrop = p.backdrop || "aurora";
       document.documentElement.classList.toggle("theme-light", p.theme === "light");
-      document.documentElement.style.setProperty("--accent", p.accent || "#d4a574");
-      document.documentElement.style.setProperty("--accent-ink", contrastInk(p.accent || "#d4a574"));
+      document.documentElement.style.setProperty("--accent", accent);
+      document.documentElement.style.setProperty("--accent-ink", contrastInk(accent));
+      document.documentElement.dataset.backdrop = backdrop;
       const letter = initialsOf(p);
       $("menu-name").textContent = p.display_name || "Signed in";
       $("menu-email").textContent = p.email || storedEmail() || "";
@@ -2121,6 +2372,7 @@
       $("theme-dark").classList.toggle("active", p.theme !== "light");
       $("theme-light").classList.toggle("active", p.theme === "light");
       renderSwatches();
+      renderBackdropPicks();
       if (p.has_avatar) showAvatarPhoto();
       else {
         showInitials(letter);
@@ -2196,10 +2448,32 @@
       }
       const picker = document.createElement("input");
       picker.type = "color";
-      picker.value = profile.accent || "#d4a574";
+      picker.value = profile.accent || "#5b9dff";
       picker.title = "Custom color";
       picker.oninput = () => { profile.accent = picker.value; applyProfile(profile); };
       box.append(picker);
+    }
+
+    function renderBackdropPicks() {
+      const box = $("backdrop-picks");
+      if (!box) return;
+      box.innerHTML = "";
+      const current = profile.backdrop || "aurora";
+      for (const scene of BACKDROPS) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "backdrop-pick" + (current === scene.id ? " on" : "");
+        b.title = scene.name;
+        const mini = document.createElement("div");
+        mini.className = "mini";
+        mini.dataset.scene = scene.id;
+        mini.innerHTML = '<div class="sky"></div><div class="orb orb-a"></div><div class="orb orb-b"></div>';
+        const label = document.createElement("span");
+        label.textContent = scene.name;
+        b.append(mini, label);
+        b.onclick = () => { profile.backdrop = scene.id; applyProfile(profile); };
+        box.append(b);
+      }
     }
 
     async function loadProfile() {
@@ -2218,6 +2492,7 @@
           display_name: $("display-name").value,
           theme: profile.theme,
           accent: profile.accent,
+          backdrop: profile.backdrop || "aurora",
         }),
       });
       const data = await res.json();
@@ -2230,12 +2505,12 @@
     }
 
     function closeAccountMenu() {
-      $("account-menu").classList.add("hidden");
+      $("account-menu").classList.remove("open");
       $("pfp").setAttribute("aria-expanded", "false");
     }
 
     function toggleAccountMenu() {
-      const open = $("account-menu").classList.toggle("hidden") === false;
+      const open = $("account-menu").classList.toggle("open");
       $("pfp").setAttribute("aria-expanded", open ? "true" : "false");
     }
 
@@ -2429,6 +2704,7 @@
         to.append(o);
       }
       if (targets.includes(keep)) to.value = keep;
+      enhanceSelect(to);
       const base = key.replace(/\.[^.]+$/, "") || key;
       $("convert-name").value = base + "." + to.value;
     }
@@ -2960,6 +3236,7 @@
     });
     document.addEventListener("click", (e) => {
       if (!$("who-bar").contains(e.target)) closeAccountMenu();
+      if (!e.target.closest(".glass-select")) closeGlassSelects();
     });
     $("view-list").onclick = () => setView("list");
     $("view-grid").onclick = () => setView("grid");
@@ -3428,6 +3705,7 @@
         row("Position", pos),
         row("Timing", delay),
       );
+      enhanceSelect(pos);
       return box;
     }
     async function saveSrtBeside(videoKey, file) {
@@ -3945,6 +4223,7 @@
         ? names.join(" · ")
         : "Invite people by email";
       if (currentShare.default_role) $("invite-role").value = currentShare.default_role;
+      enhanceSelect($("invite-role"));
       applyAccess();
     }
 
@@ -4142,6 +4421,7 @@
         card.append(open);
         box.append(card);
       }
+      enhanceSelects(box);
     }
 
     async function loadNotifications() {
@@ -4305,6 +4585,7 @@
     paintIcon("upload-folder", "uploadFolder");
     paintIcon("new-folder", "folder");
     paintIcon("new-shared", "people");
+    enhanceSelects();
     $("remember-me").checked = localStorage.getItem(rememberKey) === "1";
     if (shouldShowResume()) {
       vaultDEK = readStoredDEK();

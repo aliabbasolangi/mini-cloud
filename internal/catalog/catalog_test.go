@@ -111,15 +111,21 @@ func TestUpdateProfile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := db.UpdateProfile(ctx, user.ID, "Ali", "light", "#4a90d9")
+	got, err := db.UpdateProfile(ctx, user.ID, "Ali", "light", "#4a90d9", "stars")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.DisplayName != "Ali" || got.Theme != "light" || got.Accent != "#4a90d9" {
+	if got.DisplayName != "Ali" || got.Theme != "light" || got.Accent != "#4a90d9" || got.Backdrop != "stars" {
 		t.Fatalf("profile %+v", got)
 	}
-	if _, err := db.UpdateProfile(ctx, user.ID, "Ali", "neon", "#fff"); err != ErrBadProfile {
+	if user.Accent != DefaultAccent {
+		t.Fatalf("new accounts should start on the blue accent, got %q", user.Accent)
+	}
+	if _, err := db.UpdateProfile(ctx, user.ID, "Ali", "neon", "#fff", "aurora"); err != ErrBadProfile {
 		t.Fatalf("bad profile: %v", err)
+	}
+	if _, err := db.UpdateProfile(ctx, user.ID, "Ali", "dark", "#4a90d9", "neon"); err != ErrBadProfile {
+		t.Fatalf("bad backdrop: %v", err)
 	}
 }
 

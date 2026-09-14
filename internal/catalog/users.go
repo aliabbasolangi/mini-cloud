@@ -20,6 +20,11 @@ var (
 
 var accentHex = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 
+const (
+	DefaultAccent   = "#5b9dff"
+	DefaultBackdrop = "aurora"
+)
+
 type User struct {
 	ID           string
 	Email        string
@@ -27,6 +32,7 @@ type User struct {
 	DisplayName  string
 	Theme        string
 	Accent       string
+	Backdrop     string
 	VaultSalt    string
 	VaultWrap    string
 	Approved     bool
@@ -44,7 +50,8 @@ func (db *DB) CreateUser(ctx context.Context, email, passwordHash string) (*User
 		Email:        email,
 		PasswordHash: passwordHash,
 		Theme:        "dark",
-		Accent:       "#d4a574",
+		Accent:       DefaultAccent,
+		Backdrop:     DefaultBackdrop,
 		Approved:     admins == 0,
 		IsAdmin:      admins == 0,
 	}
@@ -56,9 +63,9 @@ func (db *DB) CreateUser(ctx context.Context, email, passwordHash string) (*User
 		admin = 1
 	}
 	_, err = db.SQL.ExecContext(ctx, `
-INSERT INTO users (id, email, password_hash, created_at, display_name, theme, accent, approved, is_admin)
-VALUES (?, ?, ?, ?, '', 'dark', '#d4a574', ?, ?)
-`, u.ID, u.Email, u.PasswordHash, time.Now().UTC().Format(time.RFC3339), approved, admin)
+INSERT INTO users (id, email, password_hash, created_at, display_name, theme, accent, backdrop, approved, is_admin)
+VALUES (?, ?, ?, ?, '', 'dark', ?, ?, ?, ?)
+`, u.ID, u.Email, u.PasswordHash, time.Now().UTC().Format(time.RFC3339), DefaultAccent, DefaultBackdrop, approved, admin)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "unique") {
 			return nil, ErrEmailTaken
@@ -68,12 +75,12 @@ VALUES (?, ?, ?, ?, '', 'dark', '#d4a574', ?, ?)
 	return u, nil
 }
 
-const userSelect = `id, email, password_hash, display_name, theme, accent, vault_salt, vault_wrap, approved, is_admin`
+const userSelect = `id, email, password_hash, display_name, theme, accent, backdrop, vault_salt, vault_wrap, approved, is_admin`
 
 func scanUser(row interface{ Scan(dest ...any) error }) (*User, error) {
 	u := &User{}
 	var approved, admin int
-	err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.DisplayName, &u.Theme, &u.Accent, &u.VaultSalt, &u.VaultWrap, &approved, &admin)
+	err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.DisplayName, &u.Theme, &u.Accent, &u.Backdrop, &u.VaultSalt, &u.VaultWrap, &approved, &admin)
 	u.Approved = approved == 1
 	u.IsAdmin = admin == 1
 	if errors.Is(err, sql.ErrNoRows) {
@@ -86,7 +93,10 @@ func scanUser(row interface{ Scan(dest ...any) error }) (*User, error) {
 		u.Theme = "dark"
 	}
 	if u.Accent == "" {
-		u.Accent = "#d4a574"
+		u.Accent = DefaultAccent
+	}
+	if u.Backdrop == "" {
+		u.Backdrop = DefaultBackdrop
 	}
 	return u, nil
 }
@@ -188,36 +198,53 @@ UPDATE users SET vault_salt = '', vault_wrap = '' WHERE email = ?
 	return err
 }
 
-func NormalizeProfile(displayName, theme, accent string) (string, string, string, error) {
+func NormalizeBackdrop(backdrop string) (string, error) {
+	backdrop = strings.ToLower(strings.TrimSpace(backdrop))
+	if backdrop == "" {
+		return DefaultBackdrop, nil
+	}
+	switch backdrop {
+	case "aurora", "orbs", "mesh", "stars", "quiet":
+		return backdrop, nil
+	default:
+		return "", ErrBadProfile
+	}
+}
+
+func NormalizeProfile(displayName, theme, accent, backdrop string) (string, string, string, string, error) {
 	displayName = strings.TrimSpace(displayName)
 	if len(displayName) > 80 {
-		return "", "", "", ErrBadProfile
+		return "", "", "", "", ErrBadProfile
 	}
 	theme = strings.ToLower(strings.TrimSpace(theme))
 	if theme == "" {
 		theme = "dark"
 	}
 	if theme != "dark" && theme != "light" {
-		return "", "", "", ErrBadProfile
+		return "", "", "", "", ErrBadProfile
 	}
 	accent = strings.TrimSpace(accent)
 	if accent == "" {
-		accent = "#d4a574"
+		accent = DefaultAccent
 	}
 	if !accentHex.MatchString(accent) {
-		return "", "", "", ErrBadProfile
+		return "", "", "", "", ErrBadProfile
 	}
-	return displayName, theme, strings.ToLower(accent), nil
+	backdrop, err := NormalizeBackdrop(backdrop)
+	if err != nil {
+		return "", "", "", "", err
+	}
+	return displayName, theme, strings.ToLower(accent), backdrop, nil
 }
 
-func (db *DB) UpdateProfile(ctx context.Context, id, displayName, theme, accent string) (*User, error) {
-	displayName, theme, accent, err := NormalizeProfile(displayName, theme, accent)
+func (db *DB) UpdateProfile(ctx context.Context, id, displayName, theme, accent, backdrop string) (*User, error) {
+	displayName, theme, accent, backdrop, err := NormalizeProfile(displayName, theme, accent, backdrop)
 	if err != nil {
 		return nil, err
 	}
 	res, err := db.SQL.ExecContext(ctx, `
-UPDATE users SET display_name = ?, theme = ?, accent = ? WHERE id = ?
-`, displayName, theme, accent, id)
+UPDATE users SET display_name = ?, theme = ?, accent = ?, backdrop = ? WHERE id = ?
+`, displayName, theme, accent, backdrop, id)
 	if err != nil {
 		return nil, err
 	}
@@ -296,9 +323,9 @@ func (db *DB) EnsureAdmin(ctx context.Context, email, passwordHash string) error
 		return nil
 	}
 	_, err = db.SQL.ExecContext(ctx, `
-INSERT INTO users (id, email, password_hash, created_at, display_name, theme, accent, approved, is_admin)
-VALUES (?, ?, ?, ?, '', 'dark', '#d4a574', 1, 1)
-`, newID(), email, passwordHash, time.Now().UTC().Format(time.RFC3339))
+INSERT INTO users (id, email, password_hash, created_at, display_name, theme, accent, backdrop, approved, is_admin)
+VALUES (?, ?, ?, ?, '', 'dark', ?, ?, 1, 1)
+`, newID(), email, passwordHash, time.Now().UTC().Format(time.RFC3339), DefaultAccent, DefaultBackdrop)
 	return err
 }
 

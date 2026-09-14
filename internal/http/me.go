@@ -23,17 +23,18 @@ func (h authHandlers) profileJSON(ctx context.Context, u *catalog.User) map[stri
 		pending, _ = h.catalog.PendingCount(ctx)
 	}
 	return map[string]any{
-		"email":          u.Email,
-		"display_name":   u.DisplayName,
-		"theme":          u.Theme,
-		"accent":         u.Accent,
-		"has_avatar":     h.avatars != nil && h.avatars.Exists(u.ID),
-		"unread_count":   unread,
-		"vault_salt":     u.VaultSalt,
-		"vault_wrap":     u.VaultWrap,
-		"approved":       u.Approved,
-		"is_admin":       u.IsAdmin,
-		"pending_count":  pending,
+		"email":         u.Email,
+		"display_name":  u.DisplayName,
+		"theme":         u.Theme,
+		"accent":        u.Accent,
+		"backdrop":      u.Backdrop,
+		"has_avatar":    h.avatars != nil && h.avatars.Exists(u.ID),
+		"unread_count":  unread,
+		"vault_salt":    u.VaultSalt,
+		"vault_wrap":    u.VaultWrap,
+		"approved":      u.Approved,
+		"is_admin":      u.IsAdmin,
+		"pending_count": pending,
 	}
 }
 
@@ -82,14 +83,15 @@ func (h authHandlers) updateMe(w http.ResponseWriter, r *http.Request) {
 		DisplayName string `json:"display_name"`
 		Theme       string `json:"theme"`
 		Accent      string `json:"accent"`
+		Backdrop    string `json:"backdrop"`
 	}
 	if err := readJSON(r, &req); err != nil {
-		writeError(w, http.StatusBadRequest, "send display_name, theme, and accent as JSON")
+		writeError(w, http.StatusBadRequest, "send display_name, theme, accent, and backdrop as JSON")
 		return
 	}
-	user, err := h.catalog.UpdateProfile(r.Context(), userIDFrom(r.Context()), req.DisplayName, req.Theme, req.Accent)
+	user, err := h.catalog.UpdateProfile(r.Context(), userIDFrom(r.Context()), req.DisplayName, req.Theme, req.Accent, req.Backdrop)
 	if errors.Is(err, catalog.ErrBadProfile) {
-		writeError(w, http.StatusBadRequest, "use a short name, dark or light, and a #rrggbb color")
+		writeError(w, http.StatusBadRequest, "use a short name, dark or light, a #rrggbb color, and a known background")
 		return
 	}
 	if errors.Is(err, catalog.ErrUserNotFound) {
@@ -169,14 +171,14 @@ func (h authHandlers) listNotifications(w http.ResponseWriter, r *http.Request) 
 	out := make([]map[string]any, 0, len(items))
 	for _, n := range items {
 		out = append(out, map[string]any{
-			"id":         n.ID,
-			"kind":       n.Kind,
-			"title":      n.Title,
-			"body":       n.Body,
-			"invite_id":  n.InviteID,
-			"folder_id":  n.FolderID,
-			"unread":     n.Unread,
-			"created":    n.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			"id":        n.ID,
+			"kind":      n.Kind,
+			"title":     n.Title,
+			"body":      n.Body,
+			"invite_id": n.InviteID,
+			"folder_id": n.FolderID,
+			"unread":    n.Unread,
+			"created":   n.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		})
 	}
 	unread, _ := h.catalog.UnreadNotificationCount(r.Context(), id)
