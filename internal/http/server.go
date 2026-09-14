@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/http"
+	"path/filepath"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -28,6 +29,7 @@ func New(store blob.Store, cat *catalog.DB, thumbs *thumb.Store, avatars *avatar
 		thumbs:     thumbs,
 		maxUpload:  cfg.MaxUploadBytes,
 		maxStorage: cfg.MaxStorageBytes,
+		uploadDir:  filepath.Join(filepath.Dir(cfg.BlobDir), "uploads"),
 	}
 
 	r.Get("/healthz", health)
@@ -69,6 +71,10 @@ func New(store blob.Store, cat *catalog.DB, thumbs *thumb.Store, avatars *avatar
 
 		r.Group(func(r chi.Router) {
 			r.Use(requireApproved(cat))
+			r.Post("/v1/uploads", objH.startUpload)
+			r.Put("/v1/uploads/{id}/{n}", objH.putUploadPart)
+			r.Post("/v1/uploads/{id}/complete", objH.completeUpload)
+			r.Delete("/v1/uploads/{id}", objH.abortUpload)
 			r.Post("/v1/move", objH.move)
 			r.Put("/v1/objects/*", objH.put)
 			r.Delete("/v1/objects/*", objH.del)

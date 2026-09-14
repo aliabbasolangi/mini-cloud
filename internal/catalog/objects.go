@@ -46,11 +46,11 @@ func (db *DB) UpsertObject(ctx context.Context, ownerID, key, blobSHA string, si
 }
 
 func (db *DB) UpsertObjectEnc(ctx context.Context, ownerID, key, blobSHA string, size int64, encVer int, encWrap string) (*Object, error) {
-	if encVer != 0 && encVer != 1 {
+	if encVer != 0 && encVer != 1 && encVer != 2 {
 		encVer = 0
 		encWrap = ""
 	}
-	if encVer == 1 {
+	if encVer == 1 || encVer == 2 {
 		encWrap = strings.TrimSpace(encWrap)
 		if encWrap == "" || len(encWrap) > 2048 {
 			encVer = 0

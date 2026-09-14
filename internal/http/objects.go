@@ -22,6 +22,7 @@ type objectHandlers struct {
 	thumbs     *thumb.Store
 	maxUpload  int64
 	maxStorage int64
+	uploadDir  string
 }
 
 func unescapeKey(raw string) string {
@@ -185,7 +186,12 @@ func (h objectHandlers) list(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"files": out,
-		"usage": map[string]int64{"used": used, "limit": h.maxStorage},
+		"usage": map[string]int64{
+			"used":       used,
+			"limit":      h.maxStorage,
+			"max_upload": h.maxUpload,
+			"chunk":      h.chunkBytes(),
+		},
 	})
 }
 

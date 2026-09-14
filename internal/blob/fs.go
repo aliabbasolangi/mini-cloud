@@ -78,6 +78,41 @@ func (s *FS) Get(ctx context.Context, sum string) (io.ReadCloser, error) {
 	return f, err
 }
 
+func (s *FS) Ingest(ctx context.Context, src string) (Result, error) {
+	if err := ctx.Err(); err != nil {
+		return Result{}, err
+	}
+	f, err := os.Open(src)
+	if err != nil {
+		return Result{}, err
+	}
+	h := sha256.New()
+	size, err := io.Copy(h, f)
+	_ = f.Close()
+	if err != nil {
+		return Result{}, err
+	}
+	sum := hex.EncodeToString(h.Sum(nil))
+	dest := filepath.Join(s.dir, sum)
+	if fileExists(dest) {
+		_ = os.Remove(src)
+		return Result{SHA256: sum, Size: size}, nil
+	}
+	if err := os.Rename(src, dest); err != nil {
+		in, err := os.Open(src)
+		if err != nil {
+			return Result{}, err
+		}
+		defer in.Close()
+		result, err := s.Put(ctx, in)
+		if err == nil {
+			_ = os.Remove(src)
+		}
+		return result, err
+	}
+	return Result{SHA256: sum, Size: size}, nil
+}
+
 func validSHA256(sum string) bool {
 	if len(sum) != 64 {
 		return false

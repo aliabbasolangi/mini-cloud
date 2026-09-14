@@ -62,6 +62,10 @@ func Open(path string) (*DB, error) {
 		_ = sqlDB.Close()
 		return nil, fmt.Errorf("migrate collab roles: %w", err)
 	}
+	if err := migrateUploads(sqlDB); err != nil {
+		_ = sqlDB.Close()
+		return nil, fmt.Errorf("migrate uploads: %w", err)
+	}
 	return &DB{SQL: sqlDB}, nil
 }
 
@@ -207,6 +211,24 @@ func migrateApproval(sqlDB *sql.DB) error {
 	_, err := sqlDB.Exec(`
 UPDATE users SET is_admin = 1
 WHERE id = (SELECT id FROM users ORDER BY created_at ASC, id ASC LIMIT 1)
+`)
+	return err
+}
+
+func migrateUploads(sqlDB *sql.DB) error {
+	_, err := sqlDB.Exec(`
+CREATE TABLE IF NOT EXISTS upload_sessions (
+	id TEXT PRIMARY KEY,
+	owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	folder_id TEXT NOT NULL DEFAULT '',
+	key TEXT NOT NULL,
+	size INTEGER NOT NULL,
+	received INTEGER NOT NULL DEFAULT 0,
+	parts INTEGER NOT NULL DEFAULT 0,
+	enc_ver INTEGER NOT NULL DEFAULT 0,
+	enc_wrap TEXT NOT NULL DEFAULT '',
+	created_at TEXT NOT NULL
+);
 `)
 	return err
 }

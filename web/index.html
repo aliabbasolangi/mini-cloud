@@ -1092,9 +1092,11 @@
     let pendingBlob = null;
     let estimateTimer = null;
     let uploadXhr = null;
+    let uploadSessionId = "";
     let previewURL = null;
     let cueTimer = 0;
     let vaultFiles = [];
+    let vaultLimits = { upload: 32 * 1024 * 1024, storage: 5 * 1024 * 1024 * 1024, chunk: 8 * 1024 * 1024 };
     let pendingPassword = "";
     let vaultDEK = null;
 
@@ -1183,6 +1185,50 @@
       const fek = await unwrapBytes(vaultDEK, unb64(wrapB64));
       return unwrapBytes(fek, new Uint8Array(buf));
     }
+    async function decryptPackedStream(stream, wrapB64) {
+      if (!vaultDEK || !wrapB64) throw new Error("vault locked");
+      const fek = await unwrapBytes(vaultDEK, unb64(wrapB64));
+      const reader = stream.getReader();
+      let buf = new Uint8Array(0);
+      const pull = async (n) => {
+        while (buf.length < n) {
+          const { done, value } = await reader.read();
+          if (done) return false;
+          const next = new Uint8Array(buf.length + value.length);
+          next.set(buf);
+          next.set(value, buf.length);
+          buf = next;
+        }
+        return true;
+      };
+      const take = (n) => {
+        const out = buf.slice(0, n);
+        buf = buf.slice(n);
+        return out;
+      };
+      if (!(await pull(16))) throw new Error("truncated");
+      const mag = take(4);
+      if (mag[0] !== 83 || mag[1] !== 75 || mag[2] !== 67 || mag[3] !== 49) throw new Error("bad pack");
+      take(12);
+      const parts = [];
+      while (await pull(16)) {
+        const iv = take(12);
+        const ctLen = readU32(take(4), 0);
+        if (!(await pull(ctLen))) throw new Error("truncated");
+        const ct = take(ctLen);
+        const packed = new Uint8Array(12 + ct.length);
+        packed.set(iv);
+        packed.set(ct, 12);
+        parts.push(await unwrapBytes(fek, packed));
+      }
+      return new Blob(parts);
+    }
+    async function materializeDownload(res, f) {
+      if (!isEncrypted(f)) return res.blob();
+      if (Number(f.enc_ver) === 2) return decryptPackedStream(res.body, f.enc_wrap);
+      const buf = await res.arrayBuffer();
+      return new Blob([await decryptDownload(buf, f.enc_wrap)]);
+    }
     async function unlockOrCreateVault(data, password) {
       if (!password) {
         vaultDEK = readStoredDEK();
@@ -1213,7 +1259,43 @@
       return vaultFiles.find((f) => f.key === key) || { key, enc_ver: 0 };
     }
     function isEncrypted(f) {
-      return !!(f && f.enc_ver === 1 && f.enc_wrap);
+      return !!(f && (f.enc_ver === 1 || f.enc_ver === 2) && f.enc_wrap);
+    }
+    function rememberLimits(usage) {
+      if (!usage) return;
+      if (usage.max_upload) vaultLimits.upload = usage.max_upload;
+      if (usage.limit) vaultLimits.storage = usage.limit;
+      if (usage.chunk) vaultLimits.chunk = usage.chunk;
+    }
+    function u32be(n) {
+      return new Uint8Array([(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255]);
+    }
+    function u64be(n) {
+      const big = BigInt(n);
+      const hi = Number((big >> 32n) & 0xffffffffn);
+      const lo = Number(big & 0xffffffffn);
+      const out = new Uint8Array(8);
+      out.set(u32be(hi), 0);
+      out.set(u32be(lo), 4);
+      return out;
+    }
+    function readU32(bytes, i) {
+      return ((bytes[i] << 24) | (bytes[i + 1] << 16) | (bytes[i + 2] << 8) | bytes[i + 3]) >>> 0;
+    }
+    function concatBytes(parts) {
+      let n = 0;
+      for (const p of parts) n += p.length;
+      const out = new Uint8Array(n);
+      let off = 0;
+      for (const p of parts) {
+        out.set(p, off);
+        off += p.length;
+      }
+      return out;
+    }
+    function packedSizeFor(plainSize, chunk) {
+      const n = Math.max(1, Math.ceil(plainSize / chunk));
+      return 16 + n * 32 + plainSize;
     }
     let profile = { email: "", display_name: "", theme: "dark", accent: "#d4a574" };
     const ACCENTS = ["#d4a574", "#4a90d9", "#5cbf8a", "#e07a6a", "#9b7ed9"];
@@ -1335,7 +1417,7 @@
       pendingFile = file;
       pendingBlob = null;
       $("modal-err").textContent = "";
-      const img = isImageFile(file);
+      const img = isImageFile(file) && file.size <= 40 * 1024 * 1024;
       $("compress-on").checked = img;
       $("mode-lossy").checked = img;
       $("mode-lossless").checked = !img;
@@ -1402,6 +1484,13 @@
         uploadXhr.abort();
         uploadXhr = null;
       }
+      if (uploadSessionId) {
+        fetch("/v1/uploads/" + uploadSessionId, {
+          method: "DELETE",
+          headers: { Authorization: "Bearer " + token() },
+        }).catch(() => {});
+        uploadSessionId = "";
+      }
       $("upload-modal").classList.add("hidden");
       pendingFile = null;
       pendingBlob = null;
@@ -1419,10 +1508,88 @@
       return apiPath("objects", key);
     }
 
+    async function uploadChunked(key, body, share, encrypt, onProgress) {
+      const chunk = vaultLimits.chunk || (8 * 1024 * 1024);
+      const plainSize = body.size;
+      const storedSize = encrypt ? packedSizeFor(plainSize, chunk) : plainSize;
+      const fek = encrypt ? crypto.getRandomValues(new Uint8Array(32)) : null;
+      const wrap = encrypt ? b64bytes(await wrapBytes(vaultDEK, fek)) : "";
+      const start = await fetch("/v1/uploads", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
+        body: JSON.stringify({
+          key,
+          size: storedSize,
+          enc_ver: encrypt ? 2 : 0,
+          enc_wrap: wrap,
+          folder_id: share ? share.id : "",
+        }),
+      });
+      const started = await start.json().catch(() => ({}));
+      if (!start.ok) return { ok: false, status: start.status, data: started };
+      uploadSessionId = started.id;
+      const partSize = vaultLimits.chunk || chunk;
+      let part = 0;
+      let sent = 0;
+      const sendPart = async (bytes) => {
+        const payload = bytes instanceof Blob ? bytes : new Blob([bytes]);
+        const res = await putWithProgress(
+          "/v1/uploads/" + uploadSessionId + "/" + part,
+          { Authorization: "Bearer " + token() },
+          payload,
+          (loaded, total) => {
+            const overall = storedSize ? (sent + loaded) / storedSize : 0;
+            if (onProgress) onProgress("upload", overall, !total);
+          },
+        );
+        if (!res.ok) return res;
+        part += 1;
+        sent += payload.size;
+        if (onProgress) onProgress("upload", storedSize ? sent / storedSize : 1, false);
+        return res;
+      };
+      if (encrypt) {
+        const header = concatBytes([
+          new Uint8Array([83, 75, 67, 49]),
+          u64be(plainSize),
+          u32be(partSize),
+        ]);
+        let res = await sendPart(header);
+        if (!res.ok) return res;
+        for (let off = 0; off < plainSize; off += partSize) {
+          if (onProgress) onProgress("encrypt", storedSize ? sent / storedSize : 0, true);
+          const slice = new Uint8Array(await body.slice(off, Math.min(plainSize, off + partSize)).arrayBuffer());
+          const packed = await wrapBytes(fek, slice);
+          const iv = packed.slice(0, 12);
+          const ct = packed.slice(12);
+          res = await sendPart(concatBytes([iv, u32be(ct.length), ct]));
+          if (!res.ok) return res;
+        }
+      } else {
+        for (let off = 0; off < plainSize; off += partSize) {
+          const slice = body.slice(off, Math.min(plainSize, off + partSize));
+          const res = await sendPart(slice);
+          if (!res.ok) return res;
+        }
+      }
+      const done = await fetch("/v1/uploads/" + uploadSessionId + "/complete", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token() },
+      });
+      const data = await done.json().catch(() => ({}));
+      uploadSessionId = "";
+      return { ok: done.ok, status: done.status, data };
+    }
+
     async function uploadBlobToKey(key, body, share, onProgress) {
+      const size = body && body.size ? body.size : 0;
+      const encrypt = !share && !!vaultDEK;
+      if (size > vaultLimits.upload) {
+        return uploadChunked(key, body, share, encrypt, onProgress);
+      }
       const headers = { Authorization: "Bearer " + token() };
       let send = body;
-      if (!share && vaultDEK) {
+      if (encrypt) {
         if (onProgress) onProgress("encrypt", 0, true);
         const enc = await encryptForUpload(body);
         send = enc.body;
@@ -3220,15 +3387,15 @@
         $("preview-body").textContent = "Could not open this file.";
         return;
       }
-      let bytes = new Uint8Array(await r.arrayBuffer());
-      if (isEncrypted(f)) {
-        try { bytes = await decryptDownload(bytes.buffer, f.enc_wrap); }
-        catch {
-          $("preview-body").textContent = "Could not decrypt this file. Sign in again to unlock the vault.";
-          return;
-        }
+      let blob;
+      try {
+        blob = await materializeDownload(r, f);
+      } catch {
+        $("preview-body").textContent = "Could not decrypt this file. Sign in again to unlock the vault.";
+        return;
       }
-      const blob = new Blob([bytes], { type: mimeFor(f.key, bytes) });
+      const peek = new Uint8Array(await blob.slice(0, 32).arrayBuffer());
+      blob = new Blob([blob], { type: mimeFor(f.key, peek) });
       if (previewURL) URL.revokeObjectURL(previewURL);
       previewURL = URL.createObjectURL(blob);
       const name = f.key.toLowerCase();
@@ -3283,15 +3450,19 @@
       const r = await fetch(fileAPI("objects", key), {
         headers: { Authorization: "Bearer " + token() },
       });
-      let bytes = new Uint8Array(await r.arrayBuffer());
-      if (isEncrypted(f)) {
-        try { bytes = await decryptDownload(bytes.buffer, f.enc_wrap); }
-        catch {
-          $("drive-err").textContent = "Could not decrypt this file. Sign in again to unlock the vault.";
-          return;
-        }
+      if (!r.ok) {
+        $("drive-err").textContent = "Could not download this file.";
+        return;
       }
-      const url = URL.createObjectURL(new Blob([bytes], { type: mimeFor(key, bytes) }));
+      let blob;
+      try {
+        blob = await materializeDownload(r, f);
+      } catch {
+        $("drive-err").textContent = "Could not decrypt this file. Sign in again to unlock the vault.";
+        return;
+      }
+      const peek = new Uint8Array(await blob.slice(0, 32).arrayBuffer());
+      const url = URL.createObjectURL(new Blob([blob], { type: mimeFor(key, peek) }));
       const link = document.createElement("a");
       link.href = url;
       link.download = key.split("/").pop();
@@ -3550,9 +3721,7 @@
         headers: { Authorization: "Bearer " + token() },
       });
       if (!r.ok) throw new Error("could not read " + prettyName(f.key));
-      let bytes = new Uint8Array(await r.arrayBuffer());
-      if (isEncrypted(f)) bytes = await decryptDownload(bytes.buffer, f.enc_wrap);
-      return bytes;
+      return new Uint8Array(await (await materializeDownload(r, f)).arrayBuffer());
     }
 
     function askSharePersonalFolder(name) {
@@ -3918,6 +4087,7 @@
         return;
       }
       const usageData = await usageRes.json();
+      rememberLimits(usageData.usage);
       const used = (usageData.usage && usageData.usage.used) || 0;
       const limit = (usageData.usage && usageData.usage.limit) || 5 * 1024 * 1024 * 1024;
       $("usage-label").textContent = formatSize(used) + " / " + formatSize(limit) + " used";

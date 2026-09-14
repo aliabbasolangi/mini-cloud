@@ -41,12 +41,15 @@ func parseEncHeaders(r *http.Request) (int, string, error) {
 	if v == "" || v == "0" {
 		return 0, "", nil
 	}
-	if v != "1" {
+	if v != "1" && v != "2" {
 		return 0, "", errBadEnc
 	}
 	wrap := strings.TrimSpace(r.Header.Get("X-Minicloud-Wrap"))
 	if wrap == "" || len(wrap) > 2048 {
 		return 0, "", errBadEnc
+	}
+	if v == "2" {
+		return 2, wrap, nil
 	}
 	return 1, wrap, nil
 }

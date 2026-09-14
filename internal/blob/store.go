@@ -20,4 +20,5 @@ type Result struct {
 type Store interface {
 	Put(ctx context.Context, r io.Reader) (Result, error)
 	Get(ctx context.Context, sha256 string) (io.ReadCloser, error)
+	Ingest(ctx context.Context, path string) (Result, error)
 }
