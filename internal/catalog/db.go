@@ -66,6 +66,10 @@ func Open(path string) (*DB, error) {
 		_ = sqlDB.Close()
 		return nil, fmt.Errorf("migrate uploads: %w", err)
 	}
+	if err := migrateShareLinks(sqlDB); err != nil {
+		_ = sqlDB.Close()
+		return nil, fmt.Errorf("migrate share links: %w", err)
+	}
 	return &DB{SQL: sqlDB}, nil
 }
 
@@ -240,6 +244,21 @@ func migrateCollabRoles(sqlDB *sql.DB) error {
 		`ALTER TABLE collab_invites ADD COLUMN role TEXT NOT NULL DEFAULT 'editor'`,
 	} {
 		if _, err := sqlDB.Exec(stmt); err != nil {
+			if !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func migrateShareLinks(sqlDB *sql.DB) error {
+	for _, col := range []string{
+		"kind TEXT NOT NULL DEFAULT 'file'",
+		"folder_id TEXT NOT NULL DEFAULT ''",
+		"role TEXT NOT NULL DEFAULT 'viewer'",
+	} {
+		if _, err := sqlDB.Exec("ALTER TABLE shares ADD COLUMN " + col); err != nil {
 			if !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
 				return err
 			}

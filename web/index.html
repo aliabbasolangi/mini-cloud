@@ -537,6 +537,9 @@
     .modal { width: min(460px, 100%); }
     .modal.wide { width: min(860px, 100%); }
     .modal h2 { margin: 0 0 8px; font-size: 18px; }
+    .link-result { display: flex; gap: 8px; align-items: center; margin: 0 0 14px; }
+    .link-result input { margin: 0; flex: 1; }
+    .link-result button { flex-shrink: 0; }
     #preview-body { max-height: 70vh; overflow: auto; margin: 12px 0; color: var(--muted); }
     #preview-body:has(video), #preview-body:has(audio) { overflow: visible; }
     #preview-body img { max-width: 100%; max-height: 65vh; display: block; margin: 0 auto; border-radius: 8px; }
@@ -858,6 +861,7 @@
           </select>
           <button type="submit">Invite</button>
         </form>
+        <button type="button" class="ghost small" id="share-folder-link">Share link</button>
         <button type="button" class="ghost small" id="open-folder-sharing">Manage people</button>
       </div>
       <form id="folder-form" class="folder-form hidden">
@@ -1030,6 +1034,37 @@
       <div class="actions">
         <button type="button" class="danger-fill" id="delete-account-go" disabled>Delete forever</button>
         <button type="button" class="ghost" id="delete-account-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="link-modal" class="overlay hidden">
+    <div class="card modal">
+      <h2 id="link-title">Share</h2>
+      <p class="lead" id="link-lead" style="color:var(--muted)">Anyone with the link can open this.</p>
+      <div id="link-role-row">
+        <label for="link-role">Anyone with the link</label>
+        <select id="link-role">
+          <option value="viewer">Viewer — look and download</option>
+          <option value="editor">Editor — can add and change files</option>
+        </select>
+      </div>
+      <label for="link-ttl">Link expires</label>
+      <select id="link-ttl">
+        <option value="1">In 1 hour</option>
+        <option value="24" selected>In 1 day</option>
+        <option value="168">In 7 days</option>
+        <option value="720">In 30 days</option>
+        <option value="never">Never</option>
+      </select>
+      <p class="err" id="link-err"></p>
+      <div id="link-result" class="link-result hidden">
+        <input id="link-url" type="text" readonly />
+        <button type="button" class="ghost small" id="link-copy">Copy</button>
+      </div>
+      <div class="actions">
+        <button type="button" id="link-create">Create link</button>
+        <button type="button" class="ghost" id="link-close">Done</button>
       </div>
     </div>
   </div>
@@ -2125,6 +2160,7 @@
       $("upload").closest(".tool-group").classList.toggle("hidden", !allowed);
       $("new-folder").closest(".tool-group").classList.toggle("hidden", !allowed);
       $("invite-form").classList.toggle("hidden", !canInviteShare());
+      $("share-folder-link").classList.toggle("hidden", !canVaultWrite() || !currentShare);
       $("open-approvals").classList.toggle("hidden", !isOwner());
       setPendingBadge(profile && profile.pending_count);
     }
@@ -2826,6 +2862,10 @@
     $("open-sharing").onclick = openSharing;
     $("sharing-back").onclick = closeSettings;
     $("open-folder-sharing").onclick = openSharing;
+    $("share-folder-link").onclick = () => {
+      if (!currentShare) return;
+      openLinkModal({ kind: "folder", folderId: currentShare.id, name: currentShare.name });
+    };
     $("open-approvals").onclick = openApprovals;
     $("approvals-back").onclick = closeSettings;
     $("open-notifications").onclick = openNotifications;
@@ -2962,7 +3002,13 @@
       $("folder-form").classList.add("hidden");
       if (makeShared) {
         try {
-          openShare(await createSharedFolder(name, $("folder-default-role").value));
+          const folder = await createSharedFolder(name, $("folder-default-role").value);
+          openLinkModal({
+            kind: "folder",
+            folderId: folder.id,
+            name,
+            onDone: () => openShare(folder),
+          });
         } catch (err) {
           $("drive-err").textContent = err.message || "Could not create shared folder";
         }
@@ -2979,10 +3025,13 @@
           $("drive-err").textContent = data.error || "Could not create folder";
           return;
         }
+        openLinkModal({ kind: "folder", folderId: currentShare.id, name: currentShare.name });
         refresh();
         return;
       }
-      rememberFolder(currentPrefix + name + "/");
+      const prefix = currentPrefix + name + "/";
+      rememberFolder(prefix);
+      openLinkModal({ kind: "folder", name, personalPrefix: prefix });
       refresh();
     };
     $("invite-form").onsubmit = async (e) => {
@@ -3033,6 +3082,98 @@
         await onConfirm();
       };
     }
+
+    let linkTarget = null;
+    function closeLinkModal() {
+      const done = linkTarget && linkTarget.onDone;
+      $("link-modal").classList.add("hidden");
+      linkTarget = null;
+      if (typeof done === "function") done();
+    }
+    function openLinkModal(target) {
+      linkTarget = target || {};
+      $("link-err").textContent = "";
+      $("link-url").value = "";
+      $("link-result").classList.add("hidden");
+      $("link-copy").textContent = "Copy";
+      $("link-ttl").value = "24";
+      $("link-role").value = "viewer";
+      const name = linkTarget.name || "this";
+      $("link-title").textContent = "Share “" + name + "”";
+      const isFolder = linkTarget.kind === "folder";
+      $("link-role-row").classList.toggle("hidden", !isFolder);
+      $("link-lead").textContent = isFolder
+        ? "Anyone with the link can open this folder. Editors who are signed in can add and change files."
+        : "Anyone with the link can download this file.";
+      $("link-modal").classList.remove("hidden");
+    }
+    async function ensureLinkFolder(target) {
+      if (target.folderId) return target.folderId;
+      if (!target.personalPrefix) return "";
+      const folder = await createSharedFolder(target.name, $("link-role").value);
+      forgetFolder(target.personalPrefix);
+      target.folderId = folder.id;
+      target.onDone = () => openShare(folder);
+      return folder.id;
+    }
+    async function createShareLink() {
+      if (!linkTarget) return;
+      $("link-err").textContent = "";
+      const never = $("link-ttl").value === "never";
+      const body = {
+        never,
+        ttl_hours: never ? 24 : Number($("link-ttl").value),
+        role: $("link-role").value || "viewer",
+      };
+      let url = "/v1/shares";
+      try {
+        if (linkTarget.kind === "folder") {
+          const folderId = await ensureLinkFolder(linkTarget);
+          url = "/v1/collab/folders/" + folderId + "/shares";
+        } else {
+          body.key = linkTarget.key;
+          if (currentShare) url = "/v1/collab/folders/" + currentShare.id + "/shares";
+        }
+      } catch (err) {
+        $("link-err").textContent = err.message || "Could not create a shared folder for this link";
+        return;
+      }
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        $("link-err").textContent = data.error || "Could not create link";
+        return;
+      }
+      let shareURL = data.url;
+      const f = linkTarget.key ? fileByKey(linkTarget.key) : null;
+      if (f && isEncrypted(f) && vaultDEK) {
+        try {
+          const fek = await unwrapBytes(vaultDEK, unb64(f.enc_wrap));
+          shareURL += "#" + b64url(fek);
+        } catch {
+          $("link-err").textContent = "Link created, but the unlock key could not be attached. Recipients will see ciphertext.";
+        }
+      }
+      $("link-url").value = shareURL;
+      $("link-result").classList.remove("hidden");
+      $("link-copy").textContent = "Copy";
+    }
+    $("link-create").onclick = createShareLink;
+    $("link-close").onclick = closeLinkModal;
+    $("link-modal").addEventListener("click", (e) => {
+      if (e.target.id === "link-modal") closeLinkModal();
+    });
+    $("link-copy").onclick = async () => {
+      const url = $("link-url").value;
+      if (!url) return;
+      await navigator.clipboard.writeText(url);
+      $("link-copy").textContent = "Copied";
+    };
+    $("link-url").onclick = () => $("link-url").select();
     $("preview-close").onclick = closePreview;
     $("preview-modal").addEventListener("click", (e) => {
       if (e.target.id === "preview-modal") closePreview();
@@ -3470,43 +3611,13 @@
       URL.revokeObjectURL(url);
     }
 
-    async function shareFile(key) {
-      $("drive-err").textContent = "";
+    function shareFile(key) {
       const f = fileByKey(key);
-      const shareURL = currentShare
-        ? "/v1/collab/folders/" + currentShare.id + "/shares"
-        : "/v1/shares";
-      const res = await fetch(shareURL, {
-        method: "POST",
-        headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
-        body: JSON.stringify({ key }),
+      openLinkModal({
+        kind: "file",
+        key,
+        name: prettyName(key) || (f && prettyName(f.key)) || "file",
       });
-      const data = await res.json();
-      if (!res.ok) {
-        $("drive-err").textContent = data.error || "Could not create link";
-        return;
-      }
-      let url = data.url;
-      if (isEncrypted(f) && vaultDEK) {
-        try {
-          const fek = await unwrapBytes(vaultDEK, unb64(f.enc_wrap));
-          url += "#" + b64url(fek);
-        } catch {
-          $("drive-err").textContent = "Link created, but the unlock key could not be attached. Recipients will see ciphertext.";
-        }
-      }
-      const banner = $("share-banner");
-      banner.classList.remove("hidden");
-      banner.innerHTML = "Anyone with this link can download for 24 hours: ";
-      const a = document.createElement("a");
-      a.href = url;
-      a.textContent = url;
-      const copy = document.createElement("button");
-      copy.type = "button";
-      copy.className = "ghost small";
-      copy.textContent = "Copy";
-      copy.onclick = async () => { await navigator.clipboard.writeText(url); copy.textContent = "Copied"; };
-      banner.append(a, " ", copy);
     }
 
     function askDeleteFolder(name) {
@@ -3574,6 +3685,12 @@
       mid.append(title, meta);
       const actions = document.createElement("div");
       actions.className = "row-actions";
+      if (canVaultWrite()) {
+        actions.append(iconBtn("share", "Share folder", "share", (e) => {
+          e.stopPropagation();
+          shareNamedFolder(name);
+        }));
+      }
       if (!currentShare && canWrite()) {
         actions.append(iconBtn("people", "Make this a shared folder", "share", (e) => {
           e.stopPropagation();
@@ -3614,6 +3731,12 @@
       mid.append(title, meta);
       const actions = document.createElement("div");
       actions.className = "row-actions";
+      if (canVaultWrite()) {
+        actions.append(iconBtn("share", "Share folder", "share", (e) => {
+          e.stopPropagation();
+          openLinkModal({ kind: "folder", folderId: folder.id, name: folder.name });
+        }));
+      }
       if (canWrite() && folder.role === "owner") {
         actions.append(iconBtn("trash", "Delete shared folder", "danger", (e) => {
           e.stopPropagation();
@@ -3724,13 +3847,36 @@
       return new Uint8Array(await (await materializeDownload(r, f)).arrayBuffer());
     }
 
+    function shareNamedFolder(name) {
+      if (currentShare) {
+        openLinkModal({ kind: "folder", folderId: currentShare.id, name: currentShare.name });
+        return;
+      }
+      const prefix = currentPrefix + name + "/";
+      const files = vaultFiles.filter((f) => f.key.startsWith(prefix));
+      if (!files.length) {
+        openLinkModal({ kind: "folder", name, personalPrefix: prefix });
+        return;
+      }
+      askConfirm(
+        "Share “" + name + "”?",
+        "This copies the folder into a shared space so anyone with the link can open it. Shared folders are not encrypted.",
+        "Continue",
+        () => convertPersonalFolder(name, prefix).then((folder) => {
+          if (folder) openLinkModal({ kind: "folder", folderId: folder.id, name, onDone: () => openShare(folder) });
+        }),
+      );
+    }
+
     function askSharePersonalFolder(name) {
       const prefix = currentPrefix + name + "/";
       askConfirm(
         "Share “" + name + "”?",
         "This copies the folder into a shared space. Shared folders are not encrypted. People you invite later start as editors.",
         "Make it shared",
-        () => convertPersonalFolder(name, prefix),
+        () => convertPersonalFolder(name, prefix).then((folder) => {
+          if (folder) openLinkModal({ kind: "folder", folderId: folder.id, name, onDone: () => openShare(folder) });
+        }),
       );
     }
 
@@ -3781,9 +3927,9 @@
       if (failed) {
         $("drive-err").textContent = "Shared folder created, but " + failed + " files did not copy. The originals are still in your vault.";
         refresh();
-        return;
+        return null;
       }
-      openShare(folder);
+      return folder;
     }
 
     async function loadCollabMembers() {

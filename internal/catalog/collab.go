@@ -152,6 +152,10 @@ SELECT role FROM collab_members WHERE folder_id = ? AND user_id = ?
 	return f, nil
 }
 
+func (db *DB) CollabFolderByID(ctx context.Context, folderID string) (*CollabFolder, error) {
+	return db.collabByID(ctx, folderID)
+}
+
 func (db *DB) collabByID(ctx context.Context, folderID string) (*CollabFolder, error) {
 	f := &CollabFolder{ID: folderID}
 	var created string

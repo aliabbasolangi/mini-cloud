@@ -42,7 +42,16 @@
       width: min(440px, 100%); background: var(--card); border: 1px solid var(--line);
       border-radius: 20px; padding: 28px; backdrop-filter: blur(16px);
     }
-    main.has-player { width: min(720px, 100%); }
+    main.has-player, main.has-list { width: min(720px, 100%); }
+    .files { list-style: none; margin: 0 0 16px; padding: 0; max-height: 55vh; overflow: auto; }
+    .files li {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 10px 0; border-top: 1px solid var(--line); font-size: 14px;
+    }
+    .files li:first-child { border-top: 0; padding-top: 0; }
+    .files button.link { background: transparent; color: var(--ink); padding: 0; font-weight: 600; border: 0; text-align: left; }
+    .files button.link:hover { text-decoration: underline; }
+    .files .meta { color: var(--muted); font-size: 12px; }
     .brand { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; margin-bottom: 18px; }
     .mark { width: 32px; height: 32px; border-radius: 10px; overflow: hidden; background: #0a0a0a; flex-shrink: 0; }
     .mark img { width: 100%; height: 100%; display: block; object-fit: cover; }
@@ -73,8 +82,10 @@
     </div>
     <h1 id="title">Shared file</h1>
     <p id="status">Opening the link…</p>
+    <ul id="files" class="files hidden"></ul>
     <div id="player"></div>
     <button type="button" id="save" hidden>Download</button>
+    <button type="button" id="open-vault" class="ghost" hidden>Open in my vault</button>
   </main>
   <script>
     function unb64url(s) {
@@ -125,28 +136,24 @@
       const key = await crypto.subtle.importKey("raw", fek, "AES-GCM", false, ["decrypt"]);
       return new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ct));
     }
-    (async () => {
-      const status = document.getElementById("status");
-      const token = location.pathname.split("/").filter(Boolean).pop();
-      const fekPart = location.hash.replace(/^#/, "");
-      const res = await fetch("/s/" + encodeURIComponent(token) + "/raw");
-      if (!res.ok) {
-        status.className = "err";
-        status.textContent = res.status === 410 ? "This link has expired." : "This link is missing or the file is gone.";
-        return;
-      }
-      const name = (res.headers.get("Content-Disposition") || "").split("filename=")[1]?.replace(/"/g, "") || "download";
-      let bytes = new Uint8Array(await res.arrayBuffer());
-      if (fekPart) {
-        try { bytes = await decryptBody(bytes.buffer, unb64url(fekPart)); }
-        catch { status.className = "err"; status.textContent = "This link is missing its unlock key, or the key is wrong."; return; }
-      }
+    function formatSize(n) {
+      const u = ["B", "KB", "MB", "GB"];
+      let i = 0;
+      n = Number(n) || 0;
+      while (n >= 1024 && i < u.length - 1) { n /= 1024; i += 1; }
+      return (i ? n.toFixed(i > 1 ? 1 : 0) : String(n)) + " " + u[i];
+    }
+    function fileURL(token, rel) {
+      return "/s/" + encodeURIComponent(token) + "/file/" + String(rel || "").split("/").filter(Boolean).map(encodeURIComponent).join("/");
+    }
+    function showFile(name, bytes) {
       const type = mimeFor(name);
       const url = URL.createObjectURL(new Blob([bytes], { type }));
       document.getElementById("title").textContent = name;
-      status.textContent = "Shared file";
+      document.getElementById("status").textContent = "Shared file";
       const ext = fileExt(name);
       const box = document.getElementById("player");
+      box.innerHTML = "";
       if (type.startsWith("video/") || ext === "mp4") {
         document.getElementById("card").classList.add("has-player");
         const stage = document.createElement("div");
@@ -213,6 +220,102 @@
         const a = document.createElement("a");
         a.href = url; a.download = name; a.click();
       };
+    }
+    (async () => {
+      const status = document.getElementById("status");
+      const parts = location.pathname.split("/").filter(Boolean);
+      const token = parts[0] === "s" ? parts[1] : parts.pop();
+      const fekPart = location.hash.replace(/^#/, "");
+      const infoRes = await fetch("/s/" + encodeURIComponent(token) + "/info");
+      if (!infoRes.ok) {
+        status.className = "err";
+        status.textContent = infoRes.status === 410 ? "This link has expired." : "This link is missing or the file is gone.";
+        return;
+      }
+      const info = await infoRes.json();
+      const role = info.role === "editor" ? "editor" : "viewer";
+      const expiry = info.never ? "This link does not expire." : (info.expires ? "This link expires " + info.expires.replace("T", " ").replace("Z", " UTC") + "." : "");
+      if (info.kind === "folder") {
+        document.title = (info.name || "Shared folder") + " · SafeKeeping";
+        document.getElementById("title").textContent = info.name || "Shared folder";
+        document.getElementById("card").classList.add("has-list");
+        status.textContent = (role === "editor" ? "Anyone with this link can view, and signed-in people can edit. " : "Anyone with this link can look and download. ") + expiry;
+        const list = document.getElementById("files");
+        list.classList.remove("hidden");
+        const files = info.files || [];
+        const prefixes = info.prefixes || [];
+        if (!files.length && !prefixes.length) {
+          const empty = document.createElement("li");
+          empty.textContent = "This folder is empty.";
+          list.append(empty);
+        }
+        prefixes.forEach((prefix) => {
+          const li = document.createElement("li");
+          const name = String(prefix).replace(/\/+$/, "").split("/").pop() || prefix;
+          const label = document.createElement("div");
+          label.textContent = name;
+          const meta = document.createElement("div");
+          meta.className = "meta";
+          meta.textContent = "Folder";
+          li.append(label, meta);
+          list.append(li);
+        });
+        files.forEach((f) => {
+          const li = document.createElement("li");
+          const open = document.createElement("button");
+          open.type = "button";
+          open.className = "link";
+          open.textContent = f.key;
+          open.onclick = () => {
+            const a = document.createElement("a");
+            a.href = fileURL(token, f.key);
+            a.download = String(f.key).split("/").pop();
+            a.click();
+          };
+          const meta = document.createElement("div");
+          meta.className = "meta";
+          meta.textContent = formatSize(f.size);
+          li.append(open, meta);
+          list.append(li);
+        });
+        const session = localStorage.getItem("minicloud.token");
+        const vault = document.getElementById("open-vault");
+        if (session) {
+          vault.hidden = false;
+          vault.onclick = async () => {
+            const res = await fetch("/v1/shares/" + encodeURIComponent(token) + "/join", {
+              method: "POST",
+              headers: { Authorization: "Bearer " + session },
+            });
+            if (!res.ok) {
+              status.className = "err";
+              const data = await res.json().catch(() => ({}));
+              status.textContent = data.error || "Could not open this folder in your vault.";
+              return;
+            }
+            location.href = "/";
+          };
+        } else if (role === "editor") {
+          vault.hidden = false;
+          vault.textContent = "Sign in to edit";
+          vault.onclick = () => { location.href = "/"; };
+        }
+        return;
+      }
+      const res = await fetch("/s/" + encodeURIComponent(token) + "/raw");
+      if (!res.ok) {
+        status.className = "err";
+        status.textContent = res.status === 410 ? "This link has expired." : "This link is missing or the file is gone.";
+        return;
+      }
+      const name = info.name || (res.headers.get("Content-Disposition") || "").split("filename=")[1]?.replace(/"/g, "") || "download";
+      let bytes = new Uint8Array(await res.arrayBuffer());
+      if (fekPart) {
+        try { bytes = await decryptBody(bytes.buffer, unb64url(fekPart)); }
+        catch { status.className = "err"; status.textContent = "This link is missing its unlock key, or the key is wrong."; return; }
+      }
+      showFile(name, bytes);
+      if (expiry) status.textContent = "Shared file · " + (role === "editor" ? "editor link. " : "") + expiry;
     })();
   </script>
 </body>

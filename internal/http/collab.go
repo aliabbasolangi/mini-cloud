@@ -632,45 +632,6 @@ func (h objectHandlers) collabRmDir(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]int64{"deleted": n})
 }
 
-func (h objectHandlers) collabShare(w http.ResponseWriter, r *http.Request) {
-	folder := h.requireCollabWrite(w, r)
-	if folder == nil {
-		return
-	}
-	var req struct {
-		Key string `json:"key"`
-	}
-	if err := readJSON(r, &req); err != nil {
-		writeError(w, http.StatusBadRequest, "send the file name as JSON")
-		return
-	}
-	rel, ok := normalizeKey(req.Key)
-	if !ok {
-		writeError(w, http.StatusBadRequest, "bad file name")
-		return
-	}
-	share, err := h.catalog.CreateShare(r.Context(), folder.OwnerID, catalog.CollabObjectKey(folder.ID, rel))
-	if errors.Is(err, catalog.ErrObjectNotFound) {
-		writeError(w, http.StatusNotFound, "file not found")
-		return
-	}
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "could not create link")
-		return
-	}
-	obj, _ := h.catalog.ObjectByKey(r.Context(), folder.OwnerID, catalog.CollabObjectKey(folder.ID, rel))
-	encVer := 0
-	if obj != nil {
-		encVer = obj.EncVer
-	}
-	writeJSON(w, http.StatusCreated, map[string]any{
-		"token":   share.Token,
-		"url":     publicShareURL(r, share.Token),
-		"expires": share.ExpiresAt.Format("2006-01-02T15:04:05Z"),
-		"enc_ver": encVer,
-	})
-}
-
 func collabFolderJSON(f *catalog.CollabFolder) map[string]any {
 	return map[string]any{
 		"id":           f.ID,

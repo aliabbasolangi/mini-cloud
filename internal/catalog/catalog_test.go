@@ -49,7 +49,7 @@ func TestUserAndObjectRoundTrip(t *testing.T) {
 		t.Fatalf("list %v %d", err, len(list))
 	}
 
-	share, err := db.CreateShare(ctx, user.ID, "holiday.jpg")
+	share, err := db.CreateShare(ctx, user.ID, ShareInput{Key: "holiday.jpg"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -264,5 +264,81 @@ func TestEnsureAdminCreatesMissingOwner(t *testing.T) {
 	again, err := db.UserByEmail(ctx, "owner@example.com")
 	if err != nil || again.PasswordHash != "hash" {
 		t.Fatalf("existing owner password must stay: %+v %v", again, err)
+	}
+}
+
+func TestFolderShareNeverExpiresAndJoin(t *testing.T) {
+	db, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	ctx := context.Background()
+
+	owner, err := db.CreateUser(ctx, "owner@example.com", "hash")
+	if err != nil {
+		t.Fatal(err)
+	}
+	guest, err := db.CreateUser(ctx, "guest@example.com", "hash")
+	if err != nil {
+		t.Fatal(err)
+	}
+	folder, err := db.CreateCollabFolder(ctx, owner.ID, "team files", "viewer")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := db.CreateShare(ctx, owner.ID, ShareInput{}); err != ErrBadShare {
+		t.Fatalf("empty share: %v", err)
+	}
+	if _, err := db.CreateShare(ctx, owner.ID, ShareInput{FolderID: folder.ID, TTLHours: 3}); err != ErrBadShareTTL {
+		t.Fatalf("bad ttl: %v", err)
+	}
+
+	share, err := db.CreateShare(ctx, owner.ID, ShareInput{
+		FolderID: folder.ID,
+		Role:     CollabRoleEditor,
+		Never:    true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !share.NeverExpires() || share.Kind != ShareKindFolder || share.Role != CollabRoleEditor {
+		t.Fatalf("share %+v", share)
+	}
+	got, err := db.ValidShare(ctx, share.Token)
+	if err != nil || !got.NeverExpires() || got.FolderID != folder.ID {
+		t.Fatalf("valid never share: %v %+v", err, got)
+	}
+
+	hour, err := db.CreateShare(ctx, owner.ID, ShareInput{FolderID: folder.ID, Role: CollabRoleViewer, TTLHours: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hour.NeverExpires() || hour.ExpiresAt.Before(time.Now().UTC()) {
+		t.Fatalf("hour share %+v", hour)
+	}
+
+	joined, err := db.JoinViaShare(ctx, guest.ID, share.Token)
+	if err != nil || joined.Role != CollabRoleEditor || joined.ID != folder.ID {
+		t.Fatalf("join: %v %+v", err, joined)
+	}
+	again, err := db.JoinViaShare(ctx, guest.ID, share.Token)
+	if err != nil || again.Role != CollabRoleEditor {
+		t.Fatalf("rejoin: %v %+v", err, again)
+	}
+
+	if _, err := db.UpsertObject(ctx, owner.ID, "holiday.jpg", "abc", 10); err != nil {
+		t.Fatal(err)
+	}
+	fileShare, err := db.CreateShare(ctx, owner.ID, ShareInput{Key: "holiday.jpg", Role: CollabRoleEditor, TTLHours: 24})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fileShare.Kind != ShareKindFile || fileShare.Role != CollabRoleViewer {
+		t.Fatalf("file share should stay a viewer download: %+v", fileShare)
+	}
+	if _, err := db.JoinViaShare(ctx, guest.ID, fileShare.Token); err != ErrShareNotFolder {
+		t.Fatalf("join file share: %v", err)
 	}
 }
